@@ -7,7 +7,7 @@ def check_password():
 
     if not st.session_state["password_correct"]:
         pwd = st.text_input("กรุณาใส่รหัสผ่านเพื่อเข้าใช้งาน:", type="password")
-        if pwd == "รหัสที่คุณตั้งเอง": # เปลี่ยนคำนี้เป็นรหัสที่คุณต้องการ
+        if pwd == "zerorezstock": # เปลี่ยนคำนี้เป็นรหัสที่คุณต้องการ
             st.session_state["password_correct"] = True
             st.rerun()
         else:
