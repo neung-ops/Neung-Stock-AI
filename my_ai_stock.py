@@ -6,17 +6,15 @@ from sklearn.linear_model import LinearRegression
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
-# --- 1. ระบบรักษาความปลอดภัย (Password Protection) ---
+# --- 1. ระบบรักษาความปลอดภัย (Security) ---
 def check_password():
-    """ตรวจสอบรหัสผ่านก่อนเข้าใช้งาน"""
     if "password_correct" not in st.session_state:
         st.session_state["password_correct"] = False
-
     if not st.session_state["password_correct"]:
-        st.title("🔒 Restricted Access")
-        pwd = st.text_input("กรุณาใส่รหัสผ่านเพื่อเข้าสู่ระบบ AI:", type="password")
-        if st.button("เข้าใช้งาน"):
-            if pwd == "zerorezstock":  # <--- คุณหนึ่งเปลี่ยนรหัสผ่านตรงนี้ได้ตามใจชอบครับ
+        st.title("🔒 AI Stock Analyzer Access")
+        pwd = st.text_input("กรุณาใส่รหัสผ่านเพื่อเข้าใช้งาน:", type="password")
+        if st.button("Login"):
+            if pwd == "1234": # คุณหนึ่งเปลี่ยนรหัสตรงนี้ได้ครับ
                 st.session_state["password_correct"] = True
                 st.rerun()
             else:
@@ -24,107 +22,127 @@ def check_password():
         return False
     return True
 
-# ถ้ายังไม่ผ่านรหัสผ่าน ให้หยุดทำงานที่เหลือ
 if not check_password():
     st.stop()
 
-# --- 2. ตั้งค่าหน้าจอ (จะทำงานเมื่อรหัสผ่านถูกต้อง) ---
-st.set_page_config(page_title="AI Stock Analyzer", layout="wide")
-st.title("📈 AI Stock Analysis Dashboard")
+# --- 2. การตั้งค่าหน้าจอและคู่มือ (App Config & Manual) ---
+st.set_page_config(page_title="AI Stock Pro", layout="wide")
 
-# --- 3. ส่วน Sidebar: เลือกหุ้นและตั้งค่า ---
+# ส่วนปุ่มคู่มือการใช้งาน (Manual Popover)
 with st.sidebar:
-    st.header("Settings")
-    # เพิ่ม .strip() ป้องกันการเคาะช่องว่างเกิน
-    ticker = st.text_input("ใส่ชื่อหุ้น (เช่น NVDA, AMD, VOO):", value="NVDA").upper().strip()
-    days_to_predict = st.slider("จำนวนวันที่ต้องการพยากรณ์ล่วงหน้า:", 1, 30, 7)
-    period = st.selectbox("ช่วงเวลาข้อมูลย้อนหลัง:", ["6mo", "1y", "2y", "5y"], index=1)
+    with st.popover("📖 คู่มือการใช้งาน (User Manual)"):
+        st.markdown("""
+        ### วิธีใช้งานเบื้องต้น
+        1. **เลือกหุ้น:** เลือกจาก 'รายการโปรด' หรือ 'พิมพ์ชื่อเอง' ที่แถบด้านซ้าย
+        2. **ซูมกราฟ:** ใช้ **ลูกกลิ้งเมาส์ (Scroll Wheel)** เพื่อซูมเข้า-ออกได้อิสระ
+        3. **เลื่อนกราฟ:** คลิกแล้วลากเพื่อเลื่อนดูช่วงเวลา (Pan)
+        4. **สัญญาณ AI:** ดูแถบสีและข้อความสรุปใต้กราฟเพื่อประกอบการตัดสินใจ
+        ---
+        *หมายเหตุ: เป็นการพยากรณ์เชิงสถิติเท่านั้น โปรดใช้วิจารณญาณ*
+        """)
+
+# --- 3. ส่วนจัดการรายการหุ้นโปรด (Quick Select) ---
+with st.sidebar:
+    st.header("🔍 ค้นหาหุ้น")
+    search_mode = st.radio("รูปแบบการเลือก:", ["รายการโปรด", "พิมพ์ชื่อเอง"])
     
-    if st.button("Logout"):
+    if search_mode == "รายการโปรด":
+        fav_list = {
+            "NVDA": "NVIDIA (หุ้นชิป AI)",
+            "AMD": "AMD (หุ้นชิป/ประมวลผล)",
+            "VOO": "S&P 500 (กองทุนดัชนีสหรัฐ)",
+            "VGT": "Tech Sector (กองทุนกลุ่มเทคโนโลยี)",
+            "GC=F": "Gold (ราคาทองคำโลก)"
+        }
+        ticker_input = st.selectbox("เลือกจากรายการที่คุณติดตาม:", options=list(fav_list.keys()), format_func=lambda x: fav_list[x])
+    else:
+        ticker_input = st.text_input("พิมพ์ชื่อ Ticker (เช่น AAPL, TSLA):", value="").upper().strip()
+
+    st.write("---")
+    days_to_predict = st.slider("พยากรณ์ล่วงหน้า (วัน):", 1, 30, 7)
+    period = st.selectbox("ข้อมูลย้อนหลัง:", ["6mo", "1y", "2y", "5y"], index=1)
+    
+    if st.button("Log out"):
         st.session_state["password_correct"] = False
         st.rerun()
 
-# --- 4. ฟังก์ชันดึงข้อมูลแบบ Cache ---
+# --- 4. ฟังก์ชันคำนวณและดึงข้อมูล ---
 @st.cache_data
-def load_data(symbol, p):
+def get_data(symbol, p):
     try:
         data = yf.download(symbol, period=p)
         return data
-    except:
-        return None
+    except: return None
 
-# --- 5. ส่วนประมวลผลหลัก ---
-if ticker:
-    try:
-        with st.spinner(f'กำลังวิเคราะห์ข้อมูล {ticker}...'):
-            df = load_data(ticker, period)
+if ticker_input:
+    df = get_data(ticker_input, period)
+    
+    if df is None or df.empty:
+        st.info(f"💡 กำลังรอข้อมูลจาก '{ticker_input}' หรือชื่อหุ้นไม่ถูกต้อง")
+    else:
+        # --- เตรียม AI (Linear Regression) ---
+        close_prices = df['Close'].values.flatten()
+        df_ml = pd.DataFrame({'Close': close_prices})
+        df_ml['S_1'] = df_ml['Close'].shift(1)
+        df_ml = df_ml.dropna()
+        X = df_ml[['S_1']].values.reshape(-1, 1)
+        y = df_ml['Close'].values.reshape(-1, 1)
         
-        # ตรวจสอบว่ามีข้อมูลจริงไหมก่อนรัน AI
-        if df is None or df.empty:
-            st.info(f"ขณะนี้ยังไม่มีข้อมูลของ {ticker} กรุณาตรวจสอบชื่อหุ้นอีกครั้ง หรือรอการอัปเดตจากตลาด")
-        else:
-            # เตรียมข้อมูลสำหรับ AI (Linear Regression)
-            # ดึงราคาปิดและจัดการมิติข้อมูลให้เป็น 2D
-            close_prices = df['Close'].values.flatten()
-            
-            df_ml = pd.DataFrame({'Close': close_prices})
-            df_ml['S_1'] = df_ml['Close'].shift(1)
-            df_ml = df_ml.dropna()
+        model = LinearRegression()
+        model.fit(X, y)
+        
+        # พยากรณ์
+        last_val = float(close_prices[-1])
+        preds = []
+        for _ in range(days_to_predict):
+            next_p = model.predict(np.array([[last_val]]))[0][0]
+            preds.append(next_p)
+            last_val = next_p
 
-            X = df_ml[['S_1']].values.reshape(-1, 1)
-            y = df_ml['Close'].values.reshape(-1, 1)
+        # --- 5. ส่วนการแสดงผล (UI) ---
+        st.title(f"📈 {ticker_input} Analysis Report")
+        
+        # กราฟพร้อมระบบซูมด้วยลูกกลิ้งเมาส์
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df.index, y=close_prices, name="ราคาจริง", line=dict(color='#1f77b4')))
+        
+        future_dates = [df.index[-1] + timedelta(days=i) for i in range(1, days_to_predict + 1)]
+        fig.add_trace(go.Scatter(x=future_dates, y=preds, name="AI พยากรณ์", line=dict(dash='dash', color='#ff7f0e')))
+        
+        # ตั้งค่าการซูมด้วย Mouse Wheel
+        fig.update_layout(
+            hovermode="x unified",
+            dragmode="pan", # คลิกค้างเพื่อเลื่อน
+            xaxis=dict(rangeslider=dict(visible=False)),
+            margin=dict(l=20, r=20, t=50, b=20)
+        )
+        # เปิดใช้งาน Scroll Zoom
+        st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True})
 
-            # สร้างและเทรน Model
-            model = LinearRegression()
-            model.fit(X, y)
+        # --- 6. ระบบวิเคราะห์สัญญาณ (AI Commentary & Action) ---
+        current_p = float(close_prices[-1])
+        target_p = float(preds[-1])
+        change_pct = ((target_p - current_p) / current_p) * 100
 
-            # ทำนายราคาอนาคต
-            last_price = float(close_prices[-1])
-            predictions = []
-            for _ in range(days_to_predict):
-                next_price = model.predict(np.array([[last_price]]))[0][0]
-                predictions.append(next_price)
-                last_price = next_price
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric("ราคาล่าสุด", f"${current_p:.2f}")
+        with c2:
+            st.metric(f"เป้าหมาย ({days_to_predict} วัน)", f"${target_p:.2f}", delta=f"{change_pct:.2f}%")
+        with c3:
+            # ระบบสัญญาณไฟจราจร
+            if change_pct > 2:
+                st.success("🟢 คำแนะนำ: Buy / สะสม")
+            elif change_pct < -2:
+                st.error("🔴 คำแนะนำ: Sell / ลดพอร์ต")
+            else:
+                st.warning("🟡 คำแนะนำ: Hold / ถือรอ")
 
-            # --- 6. การแสดงผล (Layout) ---
-            col1, col2 = st.columns([3, 1])
-
-            with col1:
-                st.subheader(f"กราฟราคาและแนวโน้มของ {ticker}")
-                fig = go.Figure()
-                
-                # เส้นราคาจริง
-                fig.add_trace(go.Scatter(x=df.index, y=close_prices, name="ราคาจริง (Actual Price)"))
-                
-                # เส้นพยากรณ์
-                future_dates = [df.index[-1] + timedelta(days=i) for i in range(1, days_to_predict + 1)]
-                fig.add_trace(go.Scatter(
-                    x=future_dates, 
-                    y=predictions, 
-                    name="AI พยากรณ์ (Forecast)", 
-                    line=dict(dash='dash', color='orange')
-                ))
-                
-                fig.update_layout(hovermode="x unified")
-                st.plotly_chart(fig, use_container_width=True)
-
-            with col2:
-                st.subheader("บทวิเคราะห์โดย AI")
-                current_price = float(close_prices[-1])
-                target_price = float(predictions[-1])
-                percent_change = ((target_price - current_price) / current_price) * 100
-                
-                st.metric("ราคาล่าสุด", f"${current_price:.2f}")
-                st.metric(f"เป้าหมายอีก {days_to_predict} วัน", f"${target_price:.2f}", 
-                          delta=f"{percent_change:.2f}%")
-                
-                st.write("---")
-                st.info(f"วิเคราะห์ด้วยโมเดล Linear Regression โดยอ้างอิงสถิติย้อนหลัง {period}")
-                
-                csv = df.to_csv().encode('utf-8')
-                st.download_button("ดาวน์โหลดข้อมูล (CSV)", csv, f"{ticker}_data.csv", "text/csv")
-
-    except Exception as e:
-        st.warning("ระบบกำลังปรับจูนมิติข้อมูล กรุณารอสักครู่...")
-else:
-    st.info("กรุณาใส่ชื่อ Ticker หุ้นที่ต้องการวิเคราะห์ที่แถบด้านซ้าย")
+        # กล่องคำอธิบาย AI
+        with st.expander("📝 บทวิเคราะห์จากระบบ AI", expanded=True):
+            trend = "ขาขึ้น (Bullish)" if change_pct > 0 else "ขาลง (Bearish)"
+            st.write(f"""
+            จากการเรียนรู้ข้อมูลย้อนหลัง **{period}** หุ้น **{ticker_input}** แสดงทิศทางเป็น **{trend}** 
+            โดยมีราคาเป้าหมายอยู่ที่ประมาณ **${target_p:.2f}** (เปลี่ยนแปลง {change_pct:.2f}%) 
+            กลยุทธ์ที่แนะนำคือสอดคล้องกับสัญญาณไฟด้านบน ทั้งนี้ควรตรวจสอบข่าวสารตลาดประกอบด้วย
+            """)
