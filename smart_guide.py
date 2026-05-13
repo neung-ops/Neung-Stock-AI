@@ -1,18 +1,13 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-# ---------------------------------------------------------------
-# Tooltip อธิบายแต่ละทางเลือก — ภาษาบ้านๆ
-# ---------------------------------------------------------------
 TIPS = [
     "ขายหุ้นออกทันทีตอนนี้เลย ได้เงินจริงแน่นอน ไม่ต้องลุ้นอะไรอีก แต่ถ้าราคายังขึ้นต่อก็จะพลาดกำไรส่วนนั้นไป",
     "ยังไม่ขาย รอให้ราคาขึ้นถึงเป้าที่ตั้งไว้ก่อน ตัวเลขที่เห็นคือ 'ถ้าถึงเป้าจะได้เท่านี้' ยังไม่ได้เงินจริงจนกว่าจะขาย",
     "ขายหุ้นออกมาแค่พอได้เงินทุนคืน หุ้นที่เหลืออยู่ในพอร์ตถือว่าได้มาฟรี จะขึ้นหรือลงก็ไม่เจ็บตัว",
 ]
 
-# ---------------------------------------------------------------
-# สร้าง HTML ตาราง
-# ---------------------------------------------------------------
+
 def build_strategy_html(rows: list, highlight_idx: int, key: str) -> str:
     rows_html = ""
     for i, r in enumerate(rows):
@@ -56,36 +51,13 @@ def build_strategy_html(rows: list, highlight_idx: int, key: str) -> str:
       *{{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin:0;padding:0}}
       body{{background:transparent}}
       .wrapper{{padding:2px 0 8px}}
-      .header{{
-        display:grid;
-        grid-template-columns:2.2fr 1fr 1.1fr 1.1fr 0.85fr;
-        gap:8px;padding:0 14px 8px;
-        font-size:11px;color:#999;font-weight:600;
-        letter-spacing:.05em;text-transform:uppercase
-      }}
-      .card{{
-        display:grid;
-        grid-template-columns:2.2fr 1fr 1.1fr 1.1fr 0.85fr;
-        gap:8px;align-items:center;
-        border-radius:10px;padding:13px 14px;margin-bottom:8px;
-        transition:box-shadow .15s
-      }}
+      .header{{display:grid;grid-template-columns:2.2fr 1fr 1.1fr 1.1fr 0.85fr;gap:8px;padding:0 14px 8px;font-size:11px;color:#999;font-weight:600;letter-spacing:.05em;text-transform:uppercase}}
+      .card{{display:grid;grid-template-columns:2.2fr 1fr 1.1fr 1.1fr 0.85fr;gap:8px;align-items:center;border-radius:10px;padding:13px 14px;margin-bottom:8px;transition:box-shadow .15s}}
       .card:hover{{box-shadow:0 3px 14px rgba(0,0,0,.07)}}
       .col-title{{display:flex;align-items:center;gap:7px;position:relative}}
       .title-text{{font-size:13.5px;font-weight:500;color:#111}}
-      .q-icon{{
-        position:relative;display:inline-flex;align-items:center;
-        justify-content:center;width:18px;height:18px;border-radius:50%;
-        background:#e9eaec;color:#555;font-size:11px;font-weight:700;
-        cursor:default;flex-shrink:0;user-select:none
-      }}
-      .tooltip{{
-        display:none;position:absolute;top:calc(100% + 7px);left:0;
-        background:#1c1c1e;color:#f0f0f0;font-size:13px;line-height:1.55;
-        padding:10px 13px;border-radius:9px;width:270px;
-        z-index:9999;pointer-events:none;white-space:normal;
-        box-shadow:0 4px 16px rgba(0,0,0,.25)
-      }}
+      .q-icon{{position:relative;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#e9eaec;color:#555;font-size:11px;font-weight:700;cursor:default;flex-shrink:0;user-select:none}}
+      .tooltip{{display:none;position:absolute;top:calc(100% + 7px);left:0;background:#1c1c1e;color:#f0f0f0;font-size:13px;line-height:1.55;padding:10px 13px;border-radius:9px;width:270px;z-index:9999;pointer-events:none;white-space:normal;box-shadow:0 4px 16px rgba(0,0,0,.25)}}
       .q-icon:hover .tooltip{{display:block}}
       .col{{display:flex;flex-direction:column;gap:2px}}
       .cell-label{{font-size:11px;color:#aaa}}
@@ -97,26 +69,19 @@ def build_strategy_html(rows: list, highlight_idx: int, key: str) -> str:
     </style>
     <div class="wrapper">
       <div class="header">
-        <div>ทางเลือก</div>
-        <div>ขายที่ราคา</div>
-        <div>เงินเข้ากระเป๋า</div>
-        <div>กำไรที่ได้เพิ่ม</div>
-        <div>ควรทำมั้ย?</div>
+        <div>ทางเลือก</div><div>ขายที่ราคา</div>
+        <div>เงินเข้ากระเป๋า</div><div>กำไรที่ได้เพิ่ม</div><div>ควรทำมั้ย?</div>
       </div>
       {rows_html}
     </div>
     """
 
 
-# ---------------------------------------------------------------
-# ฟังก์ชันหลัก
-# ---------------------------------------------------------------
-def render_smart_guide():
+def render_smart_guide(market_price: float = 0.0):
     st.write("---")
     st.header("🧠 ระบบช่วยตัดสินใจ")
-    st.caption("กรอกตัวเลขแล้วระบบจะบอกว่าควรจัดการหุ้นยังไง")
 
-    cost = shares = current_price = tp_price = sl_price = 0.0
+    cost = shares = tp_price = sl_price = 0.0
 
     c1, c2 = st.columns(2)
     with c1:
@@ -130,10 +95,15 @@ def render_smart_guide():
             value=0.0, step=1e-10, format="%.10f", key="sg_shares"
         )
 
-    current_price = st.number_input(
-        "ราคาตลาดตอนนี้ ($) — ดูจากแอปแล้วกรอกตรงนี้",
-        value=0.0, format="%.4f", key="sg_market"
-    )
+    # ถ้ามี market_price ส่งมาจากส่วนบน ไม่ต้องกรอกซ้ำ
+    if market_price > 0:
+        current_price = market_price
+        st.info(f"📡 ราคาตลาดปัจจุบัน: **${current_price:.4f}** (ดึงจากระบบอัตโนมัติ)")
+    else:
+        current_price = st.number_input(
+            "ราคาตลาดตอนนี้ ($)",
+            value=0.0, format="%.4f", key="sg_market"
+        )
 
     st.write("### อยากได้กำไรแค่ไหน?")
     plan_choice = st.radio(
@@ -146,10 +116,6 @@ def render_smart_guide():
     if cost > 0:
         tp_price = cost * (1 + target_pct / 100)
         sl_price = cost * 0.95
-        st.info(
-            f"📍 ถ้าจะได้กำไร {target_pct:.0f}% ต้องขายที่ **${tp_price:.4f}**  "
-            f"| ถ้าราคาลงถึง **${sl_price:.4f}** ควรพิจารณาตัดขาดทุน"
-        )
 
     if cost > 0 and shares > 0 and current_price > 0:
         invested      = cost * shares
@@ -168,35 +134,46 @@ def render_smart_guide():
 
         # สถานะ
         st.write("---")
-        if current_price >= tp_price:
-            st.success(f"🔥 ราคาถึงเป้าแล้ว! ตอนนี้ ${current_price:.4f} สูงกว่าเป้า ${tp_price:.4f} — ถึงเวลาพิจารณาขายได้")
+        if pnl_pct >= target_pct * 2:
+            st.success(f"🔥 กำไรเกินเป้ามากแล้ว ({pnl_pct:.1f}%) ระวังราคาย้อนกลับ ควรพิจารณาล็อคกำไรได้เลย")
+        elif current_price >= tp_price:
+            st.success(f"✅ ถึงเป้าแล้ว! ราคาตอนนี้ ${current_price:.4f} ขายได้กำไร {pnl_pct:.1f}%")
         elif current_price < sl_price:
-            st.error(f"🚨 ราคาต่ำกว่าจุดที่ควรตัดขาดทุน (${sl_price:.4f}) — ถือต่ออาจเสียมากกว่านี้")
+            st.error(f"🚨 ราคาต่ำกว่าจุดตัดขาดทุน (${sl_price:.4f}) ถือต่ออาจเสียมากกว่านี้")
         elif current_price < cost:
-            st.warning(f"⚠️ ตอนนี้ขาดทุนอยู่ — ต้องรอให้ราคาขึ้นอีก ${cost - current_price:.4f}/หุ้น ถึงจะเท่าทุน")
+            st.warning(f"⚠️ ตอนนี้ขาดทุนอยู่ รอให้ราคาขึ้นอีก ${cost - current_price:.4f}/หุ้น ถึงจะเท่าทุน")
         else:
-            st.info(f"⏳ กำไรอยู่ แต่ยังไม่ถึงเป้า — อีก ${tp_price - current_price:.4f}/หุ้น ถึงจะครบ {target_pct:.0f}%")
+            st.info(f"⏳ กำไรอยู่แต่ยังไม่ถึงเป้า อีก ${tp_price - current_price:.4f}/หุ้น ถึงจะครบ {target_pct:.0f}%")
 
-        # กำหนด badge + highlight
+        # ชื่อแถว 2 เปลี่ยนตามสถานการณ์จริง
         if current_price >= tp_price:
-            badges       = ["ขายได้เลย ✅",  "ถึงแล้ว ✅",   "ทำได้ ✅"]
-            badge_colors = ["green",          "green",         "green"]
+            title_row2 = f"✅ ถึงเป้าแล้ว ขายได้เลย"
+            note_row2  = ""
+        else:
+            title_row2 = f"⏳ รอให้ราคาขึ้นถึง ${tp_price:.4f}"
+            note_row2  = "* ตัวเลขนี้จะได้จริงเมื่อราคาถึงเป้า"
+
+        # badge + highlight ตามสถานการณ์
+        if pnl_pct >= target_pct * 2:
+            badges       = ["ล็อคกำไรได้เลย ✅", "เกินเป้าแล้ว",    "ทำได้ ✅"]
+            badge_colors = ["green",              "amber",            "green"]
+            highlight    = 0
+        elif current_price >= tp_price:
+            badges       = ["ขายได้เลย ✅",       "ถึงแล้ว ✅",       "ทำได้ ✅"]
+            badge_colors = ["green",              "green",            "green"]
             highlight    = 0
         elif current_price < sl_price:
-            badges       = ["แนะนำให้ขาย",   "เสี่ยงสูง",    "ทำไม่ได้ตอนนี้"]
-            badge_colors = ["amber",          "gray",          "gray"]
+            badges       = ["แนะนำให้ขาย",        "เสี่ยงสูง",        "ทำไม่ได้ตอนนี้"]
+            badge_colors = ["amber",              "gray",             "gray"]
             highlight    = 0
         elif current_price < cost:
-            badges       = ["ขาดทุนถ้าขาย",  "รออีกนาน",     "ทำไม่ได้ตอนนี้"]
-            badge_colors = ["gray",           "gray",          "gray"]
-            highlight    = -1  # ไม่ highlight ใคร
+            badges       = ["ขาดทุนถ้าขาย",       "รออีกนาน",         "ทำไม่ได้ตอนนี้"]
+            badge_colors = ["gray",               "gray",             "gray"]
+            highlight    = -1
         else:
-            badges       = ["ได้กำไรนิดหน่อย", "แนะนำ รอต่อ ✅", "ลดความเสี่ยง"]
-            badge_colors = ["amber",             "green",          "green"]
+            badges       = ["ได้กำไรนิดหน่อย",    "แนะนำ รอต่อ ✅",   "ลดความเสี่ยง"]
+            badge_colors = ["amber",              "green",            "green"]
             highlight    = 1
-
-        # note สำหรับแถวที่ 2 (ยังไม่ได้เงินจริง)
-        note_row1 = "* ยังไม่ได้เงินนี้จริง รอราคาถึงก่อน" if current_price < tp_price else ""
 
         rows = [
             {
@@ -211,7 +188,7 @@ def render_smart_guide():
                 "note":        "",
             },
             {
-                "title":       f"⏳ รอก่อน ยังไม่ขาย (เป้า +{target_pct:.0f}%)",
+                "title":       title_row2,
                 "price":       f"${tp_price:.4f}",
                 "value":       f"${target_value:,.2f}",
                 "profit":      f"${target_profit:+,.2f}",
@@ -219,7 +196,7 @@ def render_smart_guide():
                 "profit_pos":  True,
                 "badge":       badges[1],
                 "badge_color": badge_colors[1],
-                "note":        note_row1,
+                "note":        note_row2,
             },
             {
                 "title":       "🛡️ ขายแค่คืนทุน เหลือไว้ลุ้นฟรี",
@@ -234,9 +211,7 @@ def render_smart_guide():
             },
         ]
 
-        st.write(f"#### เปรียบเทียบทางเลือก — วางเมาส์ที่ **?** เพื่ออ่านคำอธิบาย")
-
-        # key เปลี่ยนตามค่าที่กรอก เพื่อป้องกัน error ตอน re-render
+        st.write("#### เปรียบเทียบทางเลือก — วางเมาส์ที่ **?** เพื่ออ่านคำอธิบาย")
         html_key = f"{cost}_{shares}_{current_price}_{target_pct}"
         html = build_strategy_html(rows, highlight, html_key)
         components.html(html, height=320, scrolling=False)
