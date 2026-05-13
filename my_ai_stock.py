@@ -193,65 +193,63 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # --- [UNIVERSAL CONNECT] ก้อนนี้ดึงราคาได้แน่นอน ---
+        # --- [AUTO-SYNC VERSION] เชื่อมตามหุ้นที่เลือก ---
         st.write("---")
         st.header("🧮 เครื่องมือช่วยตัดสินใจ (Full Version)")
 
-        # 1. เทคนิคดึงราคา: วนลูปหาชื่อตัวแปรที่ "น่าจะ" เก็บค่า $448.29 ไว้
+        # 1. ดึงราคาปัจจุบันแบบเชื่อมโยงกับระบบ
+        # พยายามดึงจากก้อนข้อมูลหลัก (hist) ซึ่งเป็นมาตรฐานที่ Streamlit ใช้แสดงผล
         current_val = 0.0
-        
-        # รายชื่อตัวแปรที่โปรแกรมหุ้นส่วนใหญ่ชอบใช้
-        target_names = ['last_price', 'price', 'current_price', 'close_price', 'stock_price', 'last_close']
-        
-        for name in target_names:
-            if name in locals(): # เช็คว่าในเครื่องมีตัวแปรชื่อนี้ไหม
-                try:
-                    current_val = float(locals()[name])
-                    if current_val > 0: break # ถ้าเจอเลขที่ไม่ใช่ 0 ให้หยุดหาทันที
-                except:
-                    continue
+        try:
+            # ดึงราคาปิดล่าสุดจากข้อมูลที่ระบบโหลดมา
+            if 'hist' in locals():
+                current_val = float(hist['Close'].iloc[-1])
+            elif 'df' in locals():
+                current_val = float(df['Close'].iloc[-1])
+            # ถ้าหาในก้อนข้อมูลไม่เจอ ให้หาจากชื่อตัวแปรยอดฮิต
+            else:
+                for name in ['last_price', 'current_price', 'price']:
+                    if name in locals():
+                        current_val = float(locals()[name])
+                        break
+        except:
+            current_val = 0.0
 
         # 2. ส่วนรับข้อมูล
         col1, col2 = st.columns(2)
         with col1:
-            # ใส่ต้นทุน (ผมตั้งค่าเริ่มต้นเป็น 0.0 เพื่อให้คุณกรอกเลขจาก Dime! เองได้แม่นๆ)
-            my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=0.0, step=0.01)
+            # ใช้ st.session_state เพื่อให้เลขต้นทุน Reset เมื่อเปลี่ยนหุ้น (ถ้าต้องการ)
+            # หรือใส่เป็น 0.0 เพื่อให้คุณกรอกใหม่ทุกครั้งที่เปลี่ยนหุ้นครับ
+            my_cost = st.number_input(f"ใส่ต้นทุนของคุณสำหรับ {ticker} ($)", value=0.0, step=0.01, key=f"cost_{ticker}")
             
         with col2:
-            profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10)
+            profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10, key=f"target_{ticker}")
 
         # 3. คำนวณแผนการ
         if my_cost > 0:
             tp_price = my_cost * (1 + profit_target_pct/100)
             sl_price = my_cost * 0.95 
 
-            st.subheader("📍 แผนการซื้อขายของคุณ")
+            st.subheader(f"📍 แผนการสำหรับ {ticker}")
             c1, c2 = st.columns(2)
             c1.metric("เป้าหมายขายกำไร (TP)", f"${tp_price:.2f}", f"+{profit_target_pct}%")
             c2.metric("จุดตัดขาดทุน (SL)", f"${sl_price:.2f}", "-5%")
 
             st.write("---")
             
-            # 4. แสดงสถานะ (ถ้า current_val ดึงมาได้สำเร็จ แถบสีจะเปลี่ยนทันที)
+            # 4. แสดงสถานะแบบ Real-time
             if current_val > 0:
                 if current_val >= tp_price:
-                    st.success(f"🔥 **สถานะ: ถึงเป้าหมายกำไรแล้ว!** (ราคาตลาดขณะนี้ ${current_val:.2f})")
+                    st.success(f"🔥 **สถานะ: ถึงเป้าหมายแล้ว!** (ราคาตลาด {ticker} ตอนนี้ ${current_val:.2f})")
                 elif current_val <= sl_price:
-                    st.error(f"🚨 **สถานะ: หลุดจุดถอย (Stop Loss)!** (ราคาตลาดขณะนี้ ${current_val:.2f})")
+                    st.error(f"🚨 **สถานะ: หลุดจุดถอย!** (ราคาตลาด {ticker} ตอนนี้ ${current_val:.2f})")
                 else:
-                    st.info(f"⏳ **สถานะ: ถือต่อไป (Hold)** - ราคาตลาดปัจจุบัน ${current_val:.2f} ยังอยู่ในแผน")
+                    st.info(f"⏳ **สถานะ: ถือต่อไป** - ราคาตลาด {ticker} ปัจจุบัน ${current_val:.2f}")
             else:
-                # กรณีฉุกเฉิน: ถ้ายังหาไม่เจอจริงๆ จะมีช่องให้ใส่ราคาตลาด "ครั้งเดียว" เพื่อให้ระบบรันต่อได้
-                st.warning("⚠️ ระบบยังไม่เห็นราคาตลาดอัตโนมัติ")
-                current_val = st.number_input("กรุณากรอกราคาตลาดที่เห็นด้านบน ($448.29) เพื่อเชื่อมระบบ", value=0.0)
-                if current_val > 0:
-                    if current_val >= tp_price: st.success(f"🔥 ถึงจุดขายกำไรแล้ว! (${current_val:.2f})")
-                    elif current_val <= sl_price: st.error(f"🚨 ถึงจุดต้องตัดขาดทุน! (${current_val:.2f})")
-                    else: st.info(f"⏳ สถานะคือให้ถือต่อไปครับ (${current_val:.2f})")
+                st.warning(f"⚠️ ระบบกำลังรอราคาตลาดของ {ticker}...")
         else:
-            st.warning("👈 กรุณาใส่ 'ต้นทุนของคุณ' เพื่อเริ่มการคำนวณครับ")
+            st.warning(f"👈 กรุณาใส่ต้นทุน {ticker} เพื่อคำนวณครับ")
 
         # --- ส่วนท้าย ---
-        now_thai = datetime.now() + timedelta(hours=7) 
         st.write("---") 
-        st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (TH Time) | พัฒนาโดย ZEROREZ")
+        st.caption(f"🚀 ข้อมูลเรียลไทม์สำหรับ {ticker} | พัฒนาโดย ZEROREZ")
