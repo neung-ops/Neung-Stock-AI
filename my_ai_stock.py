@@ -193,11 +193,11 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # --- [ACTIVE-UPDATE VERSION] คลิกปุ๊บ เปลี่ยนปั๊บ ---
+        # --- [TRUE DYNAMIC VERSION] เลขขยับตามคลิกแน่นอน ---
         st.write("---")
         st.header("🤝 ระบบจับมือวางแผน (Guided Trader)")
 
-        # 1. ข้อมูลต้นทุน
+        # 1. ข้อมูลจาก Dime!
         c1, c2 = st.columns(2)
         with c1:
             cost = st.number_input("1. ต้นทุนเฉลี่ยต่อหุ้น ($)", value=0.0, step=0.0001, format="%.4f", key="c_vfinal")
@@ -205,7 +205,7 @@ if ticker_input:
             shares = st.number_input("2. หุ้นที่มี (เศษหุ้น)", value=0.0, step=1e-10, format="%.10f", key="s_vfinal")
 
         if cost > 0 and shares > 0:
-            # 2. เลือกเป้าหมาย (ใช้ Key เพื่อให้ระบบจำการคลิกได้แม่นยำ)
+            # 2. เลือกเป้าหมาย (Radio)
             st.write("### 🎯 3. เลือกเป้าหมายที่คุณพอใจ:")
             plan_choice = st.radio(
                 "เลือกระดับความคาดหวัง:",
@@ -213,7 +213,7 @@ if ticker_input:
                 index=1, horizontal=True, key="plan_radio"
             )
 
-            # --- [LOGIC UPDATE] คำนวณใหม่ทุกครั้งที่มีการเปลี่ยน plan_choice ---
+            # กำหนดค่าตัวแปรตามที่คลิกเลือก
             if "5%" in plan_choice: target_pct = 5.0
             elif "10%" in plan_choice: target_pct = 10.0
             else: target_pct = 20.0
@@ -222,12 +222,12 @@ if ticker_input:
             sl_price = cost * 0.95 
             initial_investment = cost * shares
             
-            st.info(f"📍 **ระบบตั้งเป้าให้คุณ:** ราคาเป้าหมาย **${tp_price:.4f}** | จุดถอย **${sl_price:.4f}**")
+            st.info(f"📍 **ระบบตั้งเป้า:** ราคาเป้าหมาย **${tp_price:.4f}** (กำไร {target_pct}%) | จุดถอย **${sl_price:.4f}**")
 
-            # 3. ส่วนเช็คสถานะตลาด
-            price_input = st.number_input("4. ราคาตลาดตอนนี้ที่เห็นใน Dime! ($)", value=0.0, format="%.4f", key="market_input")
+            # 3. ราคาตลาด (เน้นกรอกเองจาก Dime!)
+            price_input = st.number_input("4. ราคาตลาดตอนนี้จาก Dime! ($)", value=0.0, format="%.4f", key="market_input")
             
-            # ดึงราคาตลาดอัตโนมัติมาสำรองไว้
+            # ดึงราคาสำรองถ้าช่องกรอกเป็น 0
             auto_price = 0.0
             try:
                 if 'hist' in locals(): auto_price = float(hist['Close'].iloc[-1])
@@ -241,27 +241,27 @@ if ticker_input:
                 profit_loss = current_value - initial_investment
                 
                 st.write("---")
-                st.write("### 📢 สรุปสิ่งที่ต้องทำ:")
-
-                # กรณีถึงเป้าขาย
+                
+                # Logic การแสดงผลตาราง
                 if now_price >= tp_price:
                     st.success(f"### 🎉 กำไรถึงเป้า {target_pct}% แล้ว! (+${profit_loss:,.2f})")
                     
-                    # ตารางที่จะอัปเดตตามการคลิก Radio Button ข้างบน
+                    # ตารางจะแสดงค่า USD ตามสถานะราคาปัจจุบันที่คุณกรอก
                     st.table({
                         "ระดับความอุ่นใจ": ["🛡️ ปลอดภัยที่สุด (ขายหมด)", "⚖️ สายสมดุล (ขายคืนทุน)"],
                         "กดขายเป็นเงิน ($)": [f"${current_value:,.2f}", f"${initial_investment:,.2f}"],
-                        "ผลลัพธ์": ["รับเงินก้อนจบงาน", "ได้ทุนคืน หุ้นที่เหลือถือฟรี"]
+                        "ผลลัพธ์": ["รับเงินก้อนจบงาน", f"ได้ทุนคืน ${initial_investment:,.2f} หุ้นที่เหลือถือฟรี"]
                     })
-                
-                # กรณีหลุดจุดถอย
                 elif now_price <= sl_price:
-                    st.error(f"### 🚨 ต้องถอยแล้ว! (ขาดทุน ${abs(profit_loss):,.2f})")
-                    st.write(f"คำสั่ง: กดขายทั้งหมดเป็นเงิน **${current_value:,.2f}**")
-                
-                # กรณียังไม่ถึงจุดขยับ
+                    st.error(f"### 🚨 จุดตัดขาดทุน! (ขาดทุน ${abs(profit_loss):,.2f})")
+                    st.write(f"คำสั่ง: กรอกขายใน Dime! เป็นจำนวนเงิน **${current_value:,.2f}**")
                 else:
-                    st.warning(f"### ⏳ ยังไม่ถึงเป้า (รอราคาไปที่ ${tp_price:.4f})")
+                    # ถ้ายังไม่ถึงเป้า แต่อยากรู้ว่าถ้าถึงเป้าจะได้เงินเท่าไหร่
+                    target_value = tp_price * shares
+                    target_profit = target_value - initial_investment
+                    
+                    st.warning(f"### ⏳ รอราคาไปที่ ${tp_price:.4f}")
                     st.write(f"กำไรตอนนี้: **${profit_loss:,.2f}**")
+                    st.write(f"🔔 **ถ้ากำไรถึงเป้า {target_pct}% คุณจะได้เงินทั้งหมด: ${target_value:,.2f}** (กำไร ${target_profit:,.2f})")
         else:
-            st.write("👈 ใส่ข้อมูลในข้อ 1 และ 2 เพื่อให้ระบบเริ่มคำนวณครับ")
+            st.write("👈 กรอกต้นทุนและจำนวนหุ้นจาก Dime! เพื่อเริ่มคำนวณครับ")
