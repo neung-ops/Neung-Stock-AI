@@ -75,8 +75,8 @@ with st.sidebar:
         fav_list = {
             "NVDA": "NVIDIA (AI & GPU Leader)",
             "AMD": "AMD (Processors & Graphics)",
-            "VOO": "S&P 500 Index ETF",
-            "VGT": "Information Technology ETF",
+            "VOO": "VOO (S&P 500 Index ETF)",
+            "VGT": "VGT (Information Technology ETF)",
             "GC=F": "Gold (ทองคำ)"
         }
         ticker_input = st.selectbox("เลือกจากรายการหลัก:", options=list(fav_list.keys()), format_func=lambda x: fav_list[x])
