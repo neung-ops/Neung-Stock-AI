@@ -70,7 +70,7 @@ def build_strategy_html(rows: list, highlight_idx: int, key: str) -> str:
     <div class="wrapper">
       <div class="header">
         <div>ทางเลือก</div><div>ขายที่ราคา</div>
-        <div>เงินเข้ากระเป๋า</div><div>กำไรที่ได้เพิ่ม</div><div>ควรทำมั้ย?</div>
+        <div>USD ที่ต้องขาย</div><div>กำไรที่ได้เพิ่ม</div><div>ควรทำมั้ย?</div>
       </div>
       {rows_html}
     </div>
