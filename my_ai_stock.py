@@ -193,6 +193,39 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
+        # --- เริ่มส่วนเครื่องมือช่วยตัดสินใจ (วางต่อจากส่วนกราฟหรือตาราง) ---
+        st.write("---")
+        st.header("🧮 เครื่องมือช่วยตัดสินใจ (Beta)")
+
+        # สร้างคอลัมน์เพื่อให้ใส่ข้อมูลได้ง่าย
+        col1, col2 = st.columns(2)
+
+        with col1:
+            # ใช้ราคาตลาดปัจจุบันเป็นค่าเริ่มต้น
+            my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=float(current_price))
+            
+        with col2:
+            # เลือกเป้าหมายกำไรที่ต้องการ
+            profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10)
+
+        # คำนวณตัวเลขเป้าหมายและจุดตัดขาดทุน
+        tp_price = my_cost * (1 + profit_target_pct/100)
+        sl_price = my_cost * 0.95 # ตั้งค่าตัดขาดทุนอัตโนมัติที่ 5%
+
+        st.subheader(f"📍 แผนการสำหรับหุ้น {ticker}")
+        st.write(f"✅ **ควรขายทำกำไรที่ราคา:** `${tp_price:.2f}` (เมื่อกำไร {profit_target_pct}%)")
+        st.write(f"⚠️ **ควรตัดขาดทุน (Stop Loss) ที่:** `${sl_price:.2f}` (เพื่อรักษาเงินต้น)")
+
+        # แสดงข้อความแนะนำตามสถานการณ์จริง
+        if current_price >= tp_price:
+            st.success("🎉 ราคาถึงเป้าหมายแล้ว! พิจารณาแบ่งขายทำกำไรออกมาบางส่วนครับ")
+        elif current_price <= sl_price:
+            st.error("🚨 ราคาหลุดจุดถอย! พิจารณาขายเพื่อรักษาเงินต้นไว้ก่อน")
+        else:
+            st.info("⏳ ราคายังอยู่ในช่วงถือครอง (Hold) ตามแผนการที่วางไว้")
+
+        # --- ส่วนท้ายของแอป (Footer) ---
         now_thai = datetime.now() + timedelta(hours=7) 
+        st.write("---") 
         st.caption("แนะนำ: เช็คสัญญาณหลังตลาดเปิด 30 นาที (ประมาณ 21:00 น. หรือ 22:00 น. ตามฤดูกาล) เพื่อให้ AI ประมวลผลจากทิศทางราคาที่นิ่งแล้ว")
         st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (Thailand Time) | ข้อมูลสนับสนุนโดย Yahoo Finance | พัฒนาแอพโดย ZEROREZ")
