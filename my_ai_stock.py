@@ -14,7 +14,7 @@ def check_password():
         st.title("🔒 AI Stock Analyzer Access")
         pwd = st.text_input("กรุณาใส่รหัสผ่านเพื่อเข้าใช้งาน:", type="password")
         if st.button("Login"):
-            if pwd == "zerozezstock": # เปลี่ยนรหัสผ่านตรงนี้ได้ตามต้องการ
+            if pwd == "zerorezstock": # เปลี่ยนรหัสผ่านตรงนี้ได้ตามต้องการ
                 st.session_state["password_correct"] = True
                 st.rerun()
             else:
