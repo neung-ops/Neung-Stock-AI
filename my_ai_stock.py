@@ -193,39 +193,28 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # --- เริ่มส่วนเครื่องมือช่วยตัดสินใจ (แบบ Safe Mode) ---
+        # 1. รับค่าจากผู้ใช้ (ทำงานได้แล้วจากภาพ image_2bc8be.png)
         st.write("---")
         st.header("🧮 เครื่องมือช่วยตัดสินใจ (Beta)")
-
-        # ดึงราคาล่าสุดแบบเฉพาะกิจมาใช้ตรงนี้เลย เพื่อกัน Error ชื่อตัวแปรไม่ตรง
-        # โดยปกติในแอปคุณน่าจะมีตัวแปรราคาอยู่แล้ว ลองเปลี่ยน 'last_price' เป็นชื่อนั้น
-        try:
-            current_val = float(last_price) 
-        except NameError:
-            # ถ้าหา last_price ไม่เจอจริงๆ ให้ใส่เลข 0 ไว้ก่อนเพื่อให้แอปไม่พัง
-            current_val = 0.0
-
+        
         col1, col2 = st.columns(2)
         with col1:
-            my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=current_val)
+            # ใช้เลข 0 เป็นค่าเริ่มต้นไปก่อนถ้าหาตัวแปรราคาไม่เจอ
+            my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=0.0)
             
         with col2:
             profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10)
 
-        # คำนวณ
+        # 2. คำนวณ (ใช้ค่าที่กรอกมา)
         tp_price = my_cost * (1 + profit_target_pct/100)
         sl_price = my_cost * 0.95 
 
-        st.subheader(f"📍 แผนการสำหรับหุ้น {ticker}")
+        # 3. แสดงผล (แก้ตรง {ticker} เป็นคำทั่วไปเพื่อกัน Error)
+        st.subheader("📍 แผนการสำหรับหุ้นตัวนี้") 
         st.write(f"✅ **ควรขายทำกำไรที่ราคา:** `${tp_price:.2f}` (เมื่อกำไร {profit_target_pct}%)")
         st.write(f"⚠️ **ควรตัดขาดทุน (Stop Loss) ที่:** `${sl_price:.2f}` (เพื่อรักษาเงินต้น)")
 
-        if current_val >= tp_price and current_val > 0:
-            st.success("🎉 ราคาถึงเป้าหมายแล้ว! พิจารณาแบ่งขายทำกำไรออกมาบางส่วนครับ")
-        elif current_price <= sl_price and current_val > 0:
-            st.error("🚨 ราคาหลุดจุดถอย! พิจารณาขายเพื่อรักษาเงินต้นไว้ก่อน")
-        
-        # --- ส่วนท้าย (Footer) ---
+        # --- ส่วนท้ายของแอป (Footer) ---
         now_thai = datetime.now() + timedelta(hours=7) 
         st.write("---") 
         st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (Thailand Time) | ข้อมูลสนับสนุนโดย Yahoo Finance | พัฒนาแอพโดย ZEROREZ")
