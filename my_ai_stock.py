@@ -1,4 +1,26 @@
 import streamlit as st
+
+# สร้างฟังก์ชันเช็ครหัสผ่านแบบง่าย
+def check_password():
+    if "password_correct" not in st.session_state:
+        st.session_state["password_correct"] = False
+
+    if not st.session_state["password_correct"]:
+        pwd = st.text_input("กรุณาใส่รหัสผ่านเพื่อเข้าใช้งาน:", type="password")
+        if pwd == "รหัสที่คุณตั้งเอง": # เปลี่ยนคำนี้เป็นรหัสที่คุณต้องการ
+            st.session_state["password_correct"] = True
+            st.rerun()
+        else:
+            if pwd:
+                st.error("รหัสผ่านไม่ถูกต้อง")
+            return False
+    return True
+
+if not check_password():
+    st.stop() # หยุดการทำงานถ้าใส่รหัสไม่ถูก
+
+# --- โค้ดเดิมของคุณทั้งหมดให้เอามาต่อตรงนี้ ---
+import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
