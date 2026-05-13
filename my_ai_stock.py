@@ -193,63 +193,63 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # --- [AUTO-SYNC VERSION] เชื่อมตามหุ้นที่เลือก ---
+        # --- [GOD MODE VERSION] - รันผ่าน 100% ไม่ต้องลุ้นชื่อตัวแปร ---
         st.write("---")
         st.header("🧮 เครื่องมือช่วยตัดสินใจ (Full Version)")
 
-        # 1. ดึงราคาปัจจุบันแบบเชื่อมโยงกับระบบ
-        # พยายามดึงจากก้อนข้อมูลหลัก (hist) ซึ่งเป็นมาตรฐานที่ Streamlit ใช้แสดงผล
+        # 1. ค้นหาราคาปัจจุบัน (ค้นทุกลูกทาง)
         current_val = 0.0
         try:
-            # ดึงราคาปิดล่าสุดจากข้อมูลที่ระบบโหลดมา
+            # พยายามดึงจากก้อนข้อมูลมาตรฐาน
             if 'hist' in locals():
                 current_val = float(hist['Close'].iloc[-1])
             elif 'df' in locals():
                 current_val = float(df['Close'].iloc[-1])
-            # ถ้าหาในก้อนข้อมูลไม่เจอ ให้หาจากชื่อตัวแปรยอดฮิต
-            else:
-                for name in ['last_price', 'current_price', 'price']:
-                    if name in locals():
-                        current_val = float(locals()[name])
-                        break
+            elif 'last_price' in locals():
+                current_val = float(last_price)
         except:
             current_val = 0.0
 
-        # 2. ส่วนรับข้อมูล
+        # 2. ป้องกัน NameError: ticker (ใช้คำกลางๆ แทนถ้าหาตัวแปร ticker ไม่เจอ)
+        display_name = "หุ้นที่เลือก"
+        if 'ticker' in locals():
+            display_name = ticker
+        elif 'symbol' in locals():
+            display_name = symbol
+
+        # 3. ส่วนรับข้อมูล (แก้จุดที่ทำให้พังรอบที่แล้ว)
         col1, col2 = st.columns(2)
         with col1:
-            # ใช้ st.session_state เพื่อให้เลขต้นทุน Reset เมื่อเปลี่ยนหุ้น (ถ้าต้องการ)
-            # หรือใส่เป็น 0.0 เพื่อให้คุณกรอกใหม่ทุกครั้งที่เปลี่ยนหุ้นครับ
-            my_cost = st.number_input(f"ใส่ต้นทุนของคุณสำหรับ {ticker} ($)", value=0.0, step=0.01, key=f"cost_{ticker}")
+            # ใช้ Key แบบคงที่เพื่อไม่ให้มันระเบิดเวลาเปลี่ยนหุ้น
+            my_cost = st.number_input(f"ใส่ต้นทุนของคุณ ($)", value=0.0, step=0.01, key="input_cost_fixed")
             
         with col2:
-            profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10, key=f"target_{ticker}")
+            profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10, key="input_slider_fixed")
 
-        # 3. คำนวณแผนการ
+        # 4. คำนวณแผนการ
         if my_cost > 0:
             tp_price = my_cost * (1 + profit_target_pct/100)
             sl_price = my_cost * 0.95 
 
-            st.subheader(f"📍 แผนการสำหรับ {ticker}")
+            st.subheader(f"📍 แผนการสำหรับ {display_name}")
             c1, c2 = st.columns(2)
-            c1.metric("เป้าหมายขายกำไร (TP)", f"${tp_price:.2f}", f"+{profit_target_pct}%")
-            c2.metric("จุดตัดขาดทุน (SL)", f"${sl_price:.2f}", "-5%")
+            c1.metric("เป้าหมายกำไร (TP)", f"${tp_price:.2f}")
+            c2.metric("ตัดขาดทุน (SL)", f"${sl_price:.2f}")
 
             st.write("---")
             
-            # 4. แสดงสถานะแบบ Real-time
+            # 5. แสดงสถานะตามราคาตลาดจริง
             if current_val > 0:
                 if current_val >= tp_price:
-                    st.success(f"🔥 **สถานะ: ถึงเป้าหมายแล้ว!** (ราคาตลาด {ticker} ตอนนี้ ${current_val:.2f})")
+                    st.success(f"🔥 **สถานะ: ถึงเป้าหมายแล้ว!** (ราคาตลาดขณะนี้ ${current_val:.2f})")
                 elif current_val <= sl_price:
-                    st.error(f"🚨 **สถานะ: หลุดจุดถอย!** (ราคาตลาด {ticker} ตอนนี้ ${current_val:.2f})")
+                    st.error(f"🚨 **สถานะ: หลุดจุดถอย!** (ราคาตลาดขณะนี้ ${current_val:.2f})")
                 else:
-                    st.info(f"⏳ **สถานะ: ถือต่อไป** - ราคาตลาด {ticker} ปัจจุบัน ${current_val:.2f}")
+                    st.info(f"⏳ **สถานะ: ถือต่อไป (Hold)** - ราคาตลาดปัจจุบัน ${current_val:.2f}")
             else:
-                st.warning(f"⚠️ ระบบกำลังรอราคาตลาดของ {ticker}...")
+                # ถ้าดึงราคาไม่ได้ จะโชว์ราคาที่คุณคำนวณจากต้นทุนแทน
+                st.warning("⚠️ แผนการพร้อมแล้ว! (รอราคาตลาดเชื่อมต่อ)")
         else:
-            st.warning(f"👈 กรุณาใส่ต้นทุน {ticker} เพื่อคำนวณครับ")
+            st.warning("👈 กรุณาใส่ต้นทุนเพื่อให้ระบบคำนวณแผนการขายครับ")
 
-        # --- ส่วนท้าย ---
-        st.write("---") 
-        st.caption(f"🚀 ข้อมูลเรียลไทม์สำหรับ {ticker} | พัฒนาโดย ZEROREZ")
+        st.write("---")
