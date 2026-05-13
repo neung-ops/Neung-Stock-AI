@@ -193,5 +193,4 @@ if ticker_input:
             """)
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
-        st.write("---")
         render_smart_guide()
