@@ -14,7 +14,7 @@ def check_password():
         st.title("🔒 AI Stock Analyzer Access")
         pwd = st.text_input("กรุณาใส่รหัสผ่านเพื่อเข้าใช้งาน:", type="password")
         if st.button("Login"):
-            if pwd == "1234": # คุณหนึ่งเปลี่ยนรหัสตรงนี้ได้ครับ
+            if pwd == "zerozezstock": # เปลี่ยนรหัสผ่านตรงนี้ได้ตามต้องการ
                 st.session_state["password_correct"] = True
                 st.rerun()
             else:
@@ -25,40 +25,65 @@ def check_password():
 if not check_password():
     st.stop()
 
-# --- 2. การตั้งค่าหน้าจอและคู่มือ (App Config & Manual) ---
-st.set_page_config(page_title="AI Stock Pro", layout="wide")
+# --- 2. การตั้งค่าหน้าจอและคู่มือ (App Config & Detailed Manual) ---
+st.set_page_config(page_title="AI Stock Pro - " + datetime.now().strftime('%Y'), layout="wide")
 
-# ส่วนปุ่มคู่มือการใช้งาน (Manual Popover)
 with st.sidebar:
-    with st.popover("📖 คู่มือการใช้งาน (User Manual)"):
+    st.header("📖 Help Center")
+    with st.popover("📚 คู่มือการใช้งานอย่างละเอียด"):
         st.markdown("""
-        ### วิธีใช้งานเบื้องต้น
-        1. **เลือกหุ้น:** เลือกจาก 'รายการโปรด' หรือ 'พิมพ์ชื่อเอง' ที่แถบด้านซ้าย
-        2. **ซูมกราฟ:** ใช้ **ลูกกลิ้งเมาส์ (Scroll Wheel)** เพื่อซูมเข้า-ออกได้อิสระ
-        3. **เลื่อนกราฟ:** คลิกแล้วลากเพื่อเลื่อนดูช่วงเวลา (Pan)
-        4. **สัญญาณ AI:** ดูแถบสีและข้อความสรุปใต้กราฟเพื่อประกอบการตัดสินใจ
-        ---
-        *หมายเหตุ: เป็นการพยากรณ์เชิงสถิติเท่านั้น โปรดใช้วิจารณญาณ*
+        ### 🛠 วิธีการใช้งานเบื้องต้น
+        1. **การเลือกหุ้น:** 
+            * เลือก **'รายการโปรด'** สำหรับหุ้นที่คุณหนึ่งถืออยู่ (NVDA, AMD, ทอง) 
+            * หรือเลือก **'พิมพ์ชื่อเอง'** เพื่อค้นหาหุ้นใหม่ๆ ทั่วโลก
+        2. **การปรับช่วงเวลา:**
+            * ใช้สไลเดอร์ปรับ **'พยากรณ์ล่วงหน้า'** (แนะนำ 7-14 วันเพื่อให้แม่นยำที่สุด)
+            * เลือก **'ข้อมูลย้อนหลัง'** เพื่อให้ AI เรียนรู้พฤติกรรมราคา (1y หรือ 2y กำลังดีครับ)
+        
+        ### 🖱️ เทคนิคการควบคุมกราฟ
+        * **ซูม (Zoom):** หมุนลูกกลิ้งเมาส์ (Scroll Wheel) ขึ้น-ลง ตรงจุดที่ต้องการดู
+        * **เลื่อน (Pan):** คลิกซ้ายค้างที่กราฟแล้วลากไปมาเพื่อดูข้อมูลย้อนหลัง
+        * **รีเซ็ต (Reset):** **ดับเบิ้ลคลิก (Double Click)** ที่พื้นที่ว่างบนกราฟ เพื่อกลับสู่มุมมองปกติทันที
+        
+        ### 🎯 กลยุทธ์การลงทุน
+        * **สายชิลล์:** เหมาะกับคุณหนึ่งที่ไม่ว่างเช็กทุกวัน ระบบจะคัดกรองเฉพาะเทรนด์ที่ชัดเจนจริงๆ (เน้นถือยาว)
+        * **สายลุย:** เหมาะกับการเล่นรอบสั้น ระบบจะไวต่อการแกว่งตัวของราคาเป็นพิเศษ
         """)
 
-# --- 3. ส่วนจัดการรายการหุ้นโปรด (Quick Select) ---
+# --- 3. ส่วนการเลือกกลยุทธ์และหุ้น (Strategy & Ticker Selection) ---
 with st.sidebar:
+    st.write("---")
+    st.header("🎯 กลยุทธ์การลงทุน")
+    strategy = st.radio(
+        "เลือกสไตล์ของคุณ:",
+        ["สายชิลล์ (ถือยาว)", "สายลุย (ทำรอบ)"],
+        help="สายชิลล์: ซื้อเมื่อมั่นใจ (+5%), ขายเมื่อเริ่มเสี่ยง (-3%) | สายลุย: เข้าออกไว (+2%/-2%)"
+    )
+    
+    # กำหนดเกณฑ์ตามกลยุทธ์
+    if strategy == "สายชิลล์ (ถือยาว)":
+        buy_limit, sell_limit = 5, -3
+        strat_tag = "🔵 Conservative Mode"
+    else:
+        buy_limit, sell_limit = 2, -2
+        strat_tag = "🔥 Aggressive Mode"
+
+    st.write("---")
     st.header("🔍 ค้นหาหุ้น")
-    search_mode = st.radio("รูปแบบการเลือก:", ["รายการโปรด", "พิมพ์ชื่อเอง"])
+    search_mode = st.radio("รูปแบบ:", ["รายการโปรด", "พิมพ์ชื่อเอง"])
     
     if search_mode == "รายการโปรด":
         fav_list = {
-            "NVDA": "NVIDIA (หุ้นชิป AI)",
-            "AMD": "AMD (หุ้นชิป/ประมวลผล)",
-            "VOO": "S&P 500 (กองทุนดัชนีสหรัฐ)",
-            "VGT": "Tech Sector (กองทุนกลุ่มเทคโนโลยี)",
-            "GC=F": "Gold (ราคาทองคำโลก)"
+            "NVDA": "NVIDIA (AI Leader)",
+            "AMD": "AMD (Processors)",
+            "VOO": "S&P 500 ETF",
+            "VGT": "Tech ETF",
+            "GC=F": "Gold (ทองคำ)"
         }
-        ticker_input = st.selectbox("เลือกจากรายการที่คุณติดตาม:", options=list(fav_list.keys()), format_func=lambda x: fav_list[x])
+        ticker_input = st.selectbox("หุ้นที่คุณติดตาม:", options=list(fav_list.keys()), format_func=lambda x: fav_list[x])
     else:
-        ticker_input = st.text_input("พิมพ์ชื่อ Ticker (เช่น AAPL, TSLA):", value="").upper().strip()
+        ticker_input = st.text_input("พิมพ์ Ticker (เช่น TSLA, BTC-USD):", value="").upper().strip()
 
-    st.write("---")
     days_to_predict = st.slider("พยากรณ์ล่วงหน้า (วัน):", 1, 30, 7)
     period = st.selectbox("ข้อมูลย้อนหลัง:", ["6mo", "1y", "2y", "5y"], index=1)
     
@@ -66,7 +91,7 @@ with st.sidebar:
         st.session_state["password_correct"] = False
         st.rerun()
 
-# --- 4. ฟังก์ชันคำนวณและดึงข้อมูล ---
+# --- 4. ฟังก์ชันประมวลผลข้อมูล ---
 @st.cache_data
 def get_data(symbol, p):
     try:
@@ -78,9 +103,9 @@ if ticker_input:
     df = get_data(ticker_input, period)
     
     if df is None or df.empty:
-        st.info(f"💡 กำลังรอข้อมูลจาก '{ticker_input}' หรือชื่อหุ้นไม่ถูกต้อง")
+        st.info("💡 เลือกหุ้นจากรายการด้านซ้ายเพื่อเริ่มวิเคราะห์")
     else:
-        # --- เตรียม AI (Linear Regression) ---
+        # AI Logic (Linear Regression)
         close_prices = df['Close'].values.flatten()
         df_ml = pd.DataFrame({'Close': close_prices})
         df_ml['S_1'] = df_ml['Close'].shift(1)
@@ -91,7 +116,7 @@ if ticker_input:
         model = LinearRegression()
         model.fit(X, y)
         
-        # พยากรณ์
+        # ทำนาย
         last_val = float(close_prices[-1])
         preds = []
         for _ in range(days_to_predict):
@@ -99,50 +124,52 @@ if ticker_input:
             preds.append(next_p)
             last_val = next_p
 
-        # --- 5. ส่วนการแสดงผล (UI) ---
-        st.title(f"📈 {ticker_input} Analysis Report")
+        # --- 5. กราฟและการควบคุม ---
+        st.title(f"📈 {ticker_input} Analysis")
+        st.subheader(f"Strategy: {strat_tag}")
         
-        # กราฟพร้อมระบบซูมด้วยลูกกลิ้งเมาส์
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=df.index, y=close_prices, name="ราคาจริง", line=dict(color='#1f77b4')))
         
         future_dates = [df.index[-1] + timedelta(days=i) for i in range(1, days_to_predict + 1)]
         fig.add_trace(go.Scatter(x=future_dates, y=preds, name="AI พยากรณ์", line=dict(dash='dash', color='#ff7f0e')))
         
-        # ตั้งค่าการซูมด้วย Mouse Wheel
         fig.update_layout(
             hovermode="x unified",
-            dragmode="pan", # คลิกค้างเพื่อเลื่อน
+            dragmode="pan",
             xaxis=dict(rangeslider=dict(visible=False)),
-            margin=dict(l=20, r=20, t=50, b=20)
+            margin=dict(l=10, r=10, t=40, b=10),
+            height=550
         )
-        # เปิดใช้งาน Scroll Zoom
+        
         st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True})
 
-        # --- 6. ระบบวิเคราะห์สัญญาณ (AI Commentary & Action) ---
+        # --- 6. สรุปผลและสัญญาณ (Action Signals) ---
         current_p = float(close_prices[-1])
         target_p = float(preds[-1])
         change_pct = ((target_p - current_p) / current_p) * 100
 
-        c1, c2, c3 = st.columns(3)
-        with c1:
+        col1, col2, col3 = st.columns(3)
+        with col1:
             st.metric("ราคาล่าสุด", f"${current_p:.2f}")
-        with c2:
+        with col2:
             st.metric(f"เป้าหมาย ({days_to_predict} วัน)", f"${target_p:.2f}", delta=f"{change_pct:.2f}%")
-        with c3:
-            # ระบบสัญญาณไฟจราจร
-            if change_pct > 2:
-                st.success("🟢 คำแนะนำ: Buy / สะสม")
-            elif change_pct < -2:
-                st.error("🔴 คำแนะนำ: Sell / ลดพอร์ต")
+        with col3:
+            if change_pct > buy_limit:
+                st.success(f"🟢 แนะนำ: Buy ({strategy})")
+            elif change_pct < sell_limit:
+                st.error(f"🔴 แนะนำ: Sell ({strategy})")
             else:
-                st.warning("🟡 คำแนะนำ: Hold / ถือรอ")
+                st.warning(f"🟡 แนะนำ: Hold ({strategy})")
 
-        # กล่องคำอธิบาย AI
-        with st.expander("📝 บทวิเคราะห์จากระบบ AI", expanded=True):
-            trend = "ขาขึ้น (Bullish)" if change_pct > 0 else "ขาลง (Bearish)"
+        with st.expander("📝 บทวิเคราะห์โดยละเอียด", expanded=True):
+            trend = "ขาขึ้น" if change_pct > 0 else "ขาลง"
+            advice = "เป็นโอกาสที่ดีในการเข้าสะสม" if change_pct > buy_limit else "ควรพิจารณาขายเพื่อลดความเสี่ยง" if change_pct < sell_limit else "ยังไม่พบสัญญาณการเปลี่ยนแปลงที่สำคัญ"
+            
             st.write(f"""
-            จากการเรียนรู้ข้อมูลย้อนหลัง **{period}** หุ้น **{ticker_input}** แสดงทิศทางเป็น **{trend}** 
-            โดยมีราคาเป้าหมายอยู่ที่ประมาณ **${target_p:.2f}** (เปลี่ยนแปลง {change_pct:.2f}%) 
-            กลยุทธ์ที่แนะนำคือสอดคล้องกับสัญญาณไฟด้านบน ทั้งนี้ควรตรวจสอบข่าวสารตลาดประกอบด้วย
+            ระบบวิเคราะห์หุ้น **{ticker_input}** โดยอ้างอิงกลยุทธ์ **{strategy}** 
+            พบว่าแนวโน้มในอีก {days_to_predict} วันข้างหน้ามีโอกาสเป็น **{trend}** 
+            โดยราคาพยากรณ์อยู่ที่ **${target_p:.2f}** ({change_pct:.2f}%)
+            สรุป: {advice} (คำแนะนำนี้ปรับตามเกณฑ์กลยุทธ์ที่คุณเลือก)
             """)
+            st.info("💡 TIP: หากมุมมองกราฟเพี้ยน ให้ Double Click ที่กราฟเพื่อรีเซ็ตหน้าจอ")
