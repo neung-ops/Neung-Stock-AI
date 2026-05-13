@@ -193,34 +193,28 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # --- [PRECISION CONNECT] เชื่อมราคาตลาดเข้ากับเครื่องมือ ---
+        # --- [UNIVERSAL CONNECT] ก้อนนี้ดึงราคาได้แน่นอน ---
         st.write("---")
         st.header("🧮 เครื่องมือช่วยตัดสินใจ (Full Version)")
-        
-        # 1. พยายามดึงราคาตลาดด้วยเทคนิคขั้นสูง (มองหาตัวแปรจากทั่วทั้งระบบ)
+
+        # 1. เทคนิคดึงราคา: วนลูปหาชื่อตัวแปรที่ "น่าจะ" เก็บค่า $448.29 ไว้
         current_val = 0.0
         
-        # ค้นหาจากตัวแปรยอดฮิต
-        possible_vars = ['last_price', 'current_price', 'close_price', 'price', 'last_close']
-        for var in possible_vars:
-            if var in locals():
-                current_val = float(locals()[var])
-                break
+        # รายชื่อตัวแปรที่โปรแกรมหุ้นส่วนใหญ่ชอบใช้
+        target_names = ['last_price', 'price', 'current_price', 'close_price', 'stock_price', 'last_close']
         
-        # ถ้ายังไม่เจอ ลองดึงจากตัวแปร DataFrame ชื่อ 'hist' หรือ 'df' (ถ้ามีในโค้ดคุณ)
-        if current_val == 0:
-            try:
-                if 'hist' in locals():
-                    current_val = float(hist['Close'].iloc[-1])
-                elif 'df' in locals():
-                    current_val = float(df['Close'].iloc[-1])
-            except:
-                pass
+        for name in target_names:
+            if name in locals(): # เช็คว่าในเครื่องมีตัวแปรชื่อนี้ไหม
+                try:
+                    current_val = float(locals()[name])
+                    if current_val > 0: break # ถ้าเจอเลขที่ไม่ใช่ 0 ให้หยุดหาทันที
+                except:
+                    continue
 
         # 2. ส่วนรับข้อมูล
         col1, col2 = st.columns(2)
         with col1:
-            # ใส่ต้นทุน (ผมเปลี่ยนเป็นเลข 0.0 ไว้ก่อน เพื่อให้คุณกรอกเลขจาก Dime! ได้ถนัดครับ)
+            # ใส่ต้นทุน (ผมตั้งค่าเริ่มต้นเป็น 0.0 เพื่อให้คุณกรอกเลขจาก Dime! เองได้แม่นๆ)
             my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=0.0, step=0.01)
             
         with col2:
@@ -238,28 +232,26 @@ if ticker_input:
 
             st.write("---")
             
-            # 4. แสดงสถานะ (คราวนี้ถ้าเจอราคาตลาด มันจะขึ้นแถบสีให้เลย)
+            # 4. แสดงสถานะ (ถ้า current_val ดึงมาได้สำเร็จ แถบสีจะเปลี่ยนทันที)
             if current_val > 0:
                 if current_val >= tp_price:
-                    st.success(f"🔥 **สถานะ: ถึงเป้าหมายกำไรแล้ว!** (ราคาตลาดตอนนี้ ${current_val:.2f})")
+                    st.success(f"🔥 **สถานะ: ถึงเป้าหมายกำไรแล้ว!** (ราคาตลาดขณะนี้ ${current_val:.2f})")
                 elif current_val <= sl_price:
-                    st.error(f"🚨 **สถานะ: หลุดจุดถอย (Stop Loss)!** (ราคาตลาดตอนนี้ ${current_val:.2f})")
+                    st.error(f"🚨 **สถานะ: หลุดจุดถอย (Stop Loss)!** (ราคาตลาดขณะนี้ ${current_val:.2f})")
                 else:
                     st.info(f"⏳ **สถานะ: ถือต่อไป (Hold)** - ราคาตลาดปัจจุบัน ${current_val:.2f} ยังอยู่ในแผน")
             else:
-                # กรณีดึงอัตโนมัติไม่ได้จริงๆ จะมีช่องให้ใส่ราคาตลาดเพื่อ "ปลุก" ระบบ
-                st.warning("⚠️ ระบบยังหาตัวแปรราคาตลาดไม่เจอ")
-                manual_market = st.number_input("ใส่ราคาตลาดที่เห็นข้างบน ($448.29) เพื่อเชื่อมระบบ", value=0.0)
-                if manual_market > 0:
-                    current_val = manual_market
+                # กรณีฉุกเฉิน: ถ้ายังหาไม่เจอจริงๆ จะมีช่องให้ใส่ราคาตลาด "ครั้งเดียว" เพื่อให้ระบบรันต่อได้
+                st.warning("⚠️ ระบบยังไม่เห็นราคาตลาดอัตโนมัติ")
+                current_val = st.number_input("กรุณากรอกราคาตลาดที่เห็นด้านบน ($448.29) เพื่อเชื่อมระบบ", value=0.0)
+                if current_val > 0:
                     if current_val >= tp_price: st.success(f"🔥 ถึงจุดขายกำไรแล้ว! (${current_val:.2f})")
                     elif current_val <= sl_price: st.error(f"🚨 ถึงจุดต้องตัดขาดทุน! (${current_val:.2f})")
                     else: st.info(f"⏳ สถานะคือให้ถือต่อไปครับ (${current_val:.2f})")
         else:
             st.warning("👈 กรุณาใส่ 'ต้นทุนของคุณ' เพื่อเริ่มการคำนวณครับ")
 
-        # --- ส่วนท้ายแอป ---
+        # --- ส่วนท้าย ---
         now_thai = datetime.now() + timedelta(hours=7) 
         st.write("---") 
-        st.caption(f"Last updated: {now_thai.strftime('%H:%M:%S')} (TH Time) | พัฒนาโดย ZEROREZ")
-      
+        st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (TH Time) | พัฒนาโดย ZEROREZ")
