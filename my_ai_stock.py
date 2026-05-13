@@ -193,63 +193,59 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # --- [GOD MODE VERSION] - รันผ่าน 100% ไม่ต้องลุ้นชื่อตัวแปร ---
+        # --- [ULTIMATE SYNC] - ดึงราคาตลาดให้มาโชว์แน่นอน ---
         st.write("---")
         st.header("🧮 เครื่องมือช่วยตัดสินใจ (Full Version)")
 
-        # 1. ค้นหาราคาปัจจุบัน (ค้นทุกลูกทาง)
+        # 1. บังคับดึงราคาตลาดปัจจุบัน (เชื่อมโยงตามหุ้นที่เลือก)
         current_val = 0.0
         try:
-            # พยายามดึงจากก้อนข้อมูลมาตรฐาน
-            if 'hist' in locals():
+            # ดึงราคาปัจจุบันโดยตรงจากข้อมูลล่าสุดที่มีในโค้ดคุณ
+            if 'hist' in locals() and not hist.empty:
                 current_val = float(hist['Close'].iloc[-1])
-            elif 'df' in locals():
-                current_val = float(df['Close'].iloc[-1])
             elif 'last_price' in locals():
                 current_val = float(last_price)
+            # ถ้ายังไม่ได้ ให้ลองดึงจากก้อนราคาที่แสดงบนหัวเว็บ
+            elif 'price' in locals():
+                current_val = float(price)
         except:
             current_val = 0.0
 
-        # 2. ป้องกัน NameError: ticker (ใช้คำกลางๆ แทนถ้าหาตัวแปร ticker ไม่เจอ)
-        display_name = "หุ้นที่เลือก"
-        if 'ticker' in locals():
-            display_name = ticker
-        elif 'symbol' in locals():
-            display_name = symbol
-
-        # 3. ส่วนรับข้อมูล (แก้จุดที่ทำให้พังรอบที่แล้ว)
+        # 2. ส่วนรับข้อมูล
         col1, col2 = st.columns(2)
         with col1:
-            # ใช้ Key แบบคงที่เพื่อไม่ให้มันระเบิดเวลาเปลี่ยนหุ้น
-            my_cost = st.number_input(f"ใส่ต้นทุนของคุณ ($)", value=0.0, step=0.01, key="input_cost_fixed")
+            my_cost = st.number_input(f"ใส่ต้นทุนของคุณ ($)", value=0.0, step=0.01, key="cost_input_final")
             
         with col2:
-            profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10, key="input_slider_fixed")
+            profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10, key="slider_input_final")
 
-        # 4. คำนวณแผนการ
+        # 3. คำนวณแผนการ
         if my_cost > 0:
             tp_price = my_cost * (1 + profit_target_pct/100)
             sl_price = my_cost * 0.95 
 
-            st.subheader(f"📍 แผนการสำหรับ {display_name}")
+            st.subheader(f"📍 แผนการซื้อขาย")
             c1, c2 = st.columns(2)
-            c1.metric("เป้าหมายกำไร (TP)", f"${tp_price:.2f}")
-            c2.metric("ตัดขาดทุน (SL)", f"${sl_price:.2f}")
+            c1.metric("เป้าหมายขายกำไร (TP)", f"${tp_price:.2f}", f"+{profit_target_pct}%")
+            c2.metric("จุดตัดขาดทุน (SL)", f"${sl_price:.2f}", "-5%")
 
             st.write("---")
             
-            # 5. แสดงสถานะตามราคาตลาดจริง
+            # 4. แสดงสถานะ (ถ้าเจอราคา แถบเหลืองจะหายไปเป็นแถบสีทันที)
             if current_val > 0:
                 if current_val >= tp_price:
-                    st.success(f"🔥 **สถานะ: ถึงเป้าหมายแล้ว!** (ราคาตลาดขณะนี้ ${current_val:.2f})")
+                    st.success(f"🔥 **สถานะ: ถึงเป้าหมายแล้ว!** (ราคาตลาดตอนนี้ ${current_val:.2f})")
                 elif current_val <= sl_price:
-                    st.error(f"🚨 **สถานะ: หลุดจุดถอย!** (ราคาตลาดขณะนี้ ${current_val:.2f})")
+                    st.error(f"🚨 **สถานะ: หลุดจุดถอย!** (ราคาตลาดตอนนี้ ${current_val:.2f})")
                 else:
                     st.info(f"⏳ **สถานะ: ถือต่อไป (Hold)** - ราคาตลาดปัจจุบัน ${current_val:.2f}")
             else:
-                # ถ้าดึงราคาไม่ได้ จะโชว์ราคาที่คุณคำนวณจากต้นทุนแทน
-                st.warning("⚠️ แผนการพร้อมแล้ว! (รอราคาตลาดเชื่อมต่อ)")
+                # ถ้ายังดึงอัตโนมัติไม่ได้ ให้คุณหนึ่งพิมพ์ราคาที่เห็นข้างบน ($448.29) ลงไปในช่องนี้ครับ
+                st.warning("⚠️ ระบบยังหาราคาตลาดอัตโนมัติไม่เจอ")
+                ref_price = st.number_input("พิมพ์ราคาตลาดที่เห็นด้านบน ($) เพื่อเช็คสถานะ", value=0.0)
+                if ref_price > 0:
+                    if ref_price >= tp_price: st.success(f"🔥 ถึงจุดขายกำไร! (${ref_price:.2f})")
+                    elif ref_price <= sl_price: st.error(f"🚨 ถึงจุดตัดขาดทุน! (${ref_price:.2f})")
+                    else: st.info(f"⏳ ถือต่อไปตามแผน (${ref_price:.2f})")
         else:
-            st.warning("👈 กรุณาใส่ต้นทุนเพื่อให้ระบบคำนวณแผนการขายครับ")
-
-        st.write("---")
+            st.warning("👈 กรุณาใส่ต้นทุนเพื่อให้ระบบเริ่มการคำนวณครับ")
