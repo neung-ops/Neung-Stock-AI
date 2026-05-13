@@ -195,4 +195,4 @@ if ticker_input:
         st.write("---")
         now_thai = datetime.now() + timedelta(hours=7) 
         st.write("---")
-        st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (Thailand Time) | ข้อมูลสนับสนุนโดย Yahoo Finance | Developed by: ZEROREZ")
+        st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (Thailand Time) | ข้อมูลสนับสนุนโดย Yahoo Finance | พัฒนาแอพโดย ZEROREZ")
