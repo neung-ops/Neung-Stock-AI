@@ -193,52 +193,48 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # --- [START] ส่วนเครื่องมือช่วยตัดสินใจ เวอร์ชันสมบูรณ์ ---
+        # --- [FINAL UPDATE] เครื่องมือช่วยตัดสินใจแบบสมบูรณ์ ---
         st.write("---")
         st.header("🧮 เครื่องมือช่วยตัดสินใจ (Full Version)")
         
-        # ดึงราคาปัจจุบันมาเตรียมไว้ (ใช้ Try เพื่อกัน Error ถ้าตัวแปรชื่อไม่ตรง)
+        # ดึงราคาล่าสุดจากระบบ (เช็กชื่อตัวแปรให้ตรงกับที่โชว์ $448.29 ด้านบน)
+        # สมมติว่าตัวแปรราคาล่าสุดของคุณคือ last_price
         try:
             current_val = float(last_price)
         except:
             current_val = 0.0
 
-        # ส่วนรับข้อมูลจากคุณหนึ่ง
         col1, col2 = st.columns(2)
         with col1:
-            # ถ้าดึงราคาได้ มันจะใส่ให้เอง แต่ถ้าไม่ได้ คุณพิมพ์เลขจาก Dime! ลงไปได้เลยครับ
-            my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=current_val if current_val > 0 else 0.0, step=0.01)
+            # ให้คุณกรอกต้นทุนจากแอป Dime! ลงในช่องนี้
+            my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=0.0, step=0.01, help="ระบุราคาต้นทุนเฉลี่ยที่คุณซื้อมา")
             
         with col2:
-            # ปรับเป้ากำไรที่อยากได้
             profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10)
 
-        # ส่วนการคำนวณแผนการ
-        tp_price = my_cost * (1 + profit_target_pct/100)
-        sl_price = my_cost * 0.95 # ตัดขาดทุนที่ 5% (มาตรฐานความปลอดภัย)
-
-        st.subheader("📍 แผนการซื้อขายของคุณ")
-        
-        # แสดงตัวเลขเป้าหมายแบบชัดๆ
-        c1, c2 = st.columns(2)
-        c1.metric("เป้าหมายขายกำไร", f"${tp_price:.2f}")
-        c2.metric("จุดต้องขายตัดขาดทุน", f"${sl_price:.2f}")
-
-        # --- ส่วนแจ้งเตือนสถานะ (ส่วนที่ทำให้เข้าใจง่ายขึ้น) ---
+        # คำนวณแผนการ
         if my_cost > 0:
-            st.write("---")
-            if current_val >= tp_price:
-                st.success(f"🔥 **สถานะ: ถึงเวลาขายทำกำไร!** \n\n ราคาตอนนี้ (${current_val:.2f}) สูงกว่าเป้าหมายคุณแล้ว เก็บกำไรเข้ากระเป๋าได้เลยครับ")
-            elif current_val <= sl_price:
-                st.error(f"🚨 **สถานะ: ต้องหยุดขาดทุน (Stop Loss)!** \n\n ราคาตอนนี้ (${current_val:.2f}) ต่ำกว่าจุดที่คุณควรยอมแพ้แล้ว รักษาทุนไว้ก่อนนะ")
-            else:
-                st.info(f"⏳ **สถานะ: ถือต่อไป (Hold)** \n\n ราคาปัจจุบันคือ ${current_val:.2f} ยังไม่ถึงจุดขายทั้งบนและล่าง นั่งจิบกาแฟรอดูอาการไปก่อนครับ")
-        else:
-            st.warning("💡 กรุณาใส่ 'ต้นทุน' ของคุณเพื่อให้ระบบช่วยคำนวณสถานะการขายครับ")
+            tp_price = my_cost * (1 + profit_target_pct/100)
+            sl_price = my_cost * 0.95 # ตัดขาดทุนที่ 5%
 
-        # --- ส่วนท้ายแอป (Footer) ---
+            st.subheader("📍 แผนการซื้อขายของคุณ")
+            c1, c2 = st.columns(2)
+            c1.metric("เป้าหมายขายกำไร (TP)", f"${tp_price:.2f}", f"+{profit_target_pct}%")
+            c2.metric("จุดตัดขาดทุน (SL)", f"${sl_price:.2f}", "-5%")
+
+            st.write("---")
+            # เช็กสถานะและแสดงแถบสี
+            if current_val >= tp_price:
+                st.success(f"🔥 **สถานะ: ถึงเป้าหมายกำไรแล้ว!** (ราคาปัจจุบัน ${current_val:.2f})")
+            elif current_val <= sl_price:
+                st.error(f"🚨 **สถานะ: หลุดจุดถอย (Stop Loss)!** (ราคาปัจจุบัน ${current_val:.2f})")
+            else:
+                st.info(f"⏳ **สถานะ: ถือต่อไป (Hold)** - ราคาปัจจุบัน ${current_val:.2f} ยังอยู่ในแผน")
+        else:
+            st.warning("👈 กรุณาใส่ 'ต้นทุนของคุณ' เพื่อเริ่มการคำนวณสถานะครับ")
+
+        # --- ส่วนท้าย ---
         now_thai = datetime.now() + timedelta(hours=7) 
         st.write("---") 
-        st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (TH Time) | 🚀 พัฒนาโดย ZEROREZ")
-        # --- [END] ---
+        st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (TH Time) | พัฒนาโดย ZEROREZ")
       
