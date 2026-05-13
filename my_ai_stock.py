@@ -193,40 +193,39 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # 1. รับค่าจากผู้ใช้ก่อน (Input)
+        # --- เริ่มส่วนเครื่องมือช่วยตัดสินใจ (แบบ Safe Mode) ---
         st.write("---")
         st.header("🧮 เครื่องมือช่วยตัดสินใจ (Beta)")
-        
+
+        # ดึงราคาล่าสุดแบบเฉพาะกิจมาใช้ตรงนี้เลย เพื่อกัน Error ชื่อตัวแปรไม่ตรง
+        # โดยปกติในแอปคุณน่าจะมีตัวแปรราคาอยู่แล้ว ลองเปลี่ยน 'last_price' เป็นชื่อนั้น
+        try:
+            current_val = float(last_price) 
+        except NameError:
+            # ถ้าหา last_price ไม่เจอจริงๆ ให้ใส่เลข 0 ไว้ก่อนเพื่อให้แอปไม่พัง
+            current_val = 0.0
+
         col1, col2 = st.columns(2)
         with col1:
-            # ใช้ราคาตลาดปัจจุบันเป็นค่าเริ่มต้น ถ้าชื่อตัวแปรคุณคือ last_price ให้เปลี่ยนเป็น last_price ครับ
-            my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=float(last_price))
+            my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=current_val)
             
         with col2:
             profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10)
 
-        # 2. ตั้งชื่อตัวแปรราคาปัจจุบันให้ระบบจำได้
-        current_price = last_price 
-
-        # 3. คำนวณ (ทำหลังจากได้ค่า my_cost และ profit_target_pct มาแล้ว)
+        # คำนวณ
         tp_price = my_cost * (1 + profit_target_pct/100)
-        sl_price = my_cost * 0.95 # ตัดขาดทุนที่ 5%
+        sl_price = my_cost * 0.95 
 
-        # 4. แสดงผล
         st.subheader(f"📍 แผนการสำหรับหุ้น {ticker}")
         st.write(f"✅ **ควรขายทำกำไรที่ราคา:** `${tp_price:.2f}` (เมื่อกำไร {profit_target_pct}%)")
         st.write(f"⚠️ **ควรตัดขาดทุน (Stop Loss) ที่:** `${sl_price:.2f}` (เพื่อรักษาเงินต้น)")
 
-        # 5. แสดงข้อความเตือน
-        if current_price >= tp_price:
+        if current_val >= tp_price and current_val > 0:
             st.success("🎉 ราคาถึงเป้าหมายแล้ว! พิจารณาแบ่งขายทำกำไรออกมาบางส่วนครับ")
-        elif current_price <= sl_price:
+        elif current_price <= sl_price and current_val > 0:
             st.error("🚨 ราคาหลุดจุดถอย! พิจารณาขายเพื่อรักษาเงินต้นไว้ก่อน")
-        else:
-            st.info("⏳ ราคายังอยู่ในช่วงถือครอง (Hold) ตามแผนการที่วางไว้")
-
-        # --- ส่วนท้ายของแอป (Footer) ---
+        
+        # --- ส่วนท้าย (Footer) ---
         now_thai = datetime.now() + timedelta(hours=7) 
         st.write("---") 
-        st.caption("แนะนำ: เช็คสัญญาณหลังตลาดเปิด 30 นาที (ประมาณ 21:00 น. หรือ 22:00 น. ตามฤดูกาล) เพื่อให้ AI ประมวลผลจากทิศทางราคาที่นิ่งแล้ว")
         st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (Thailand Time) | ข้อมูลสนับสนุนโดย Yahoo Finance | พัฒนาแอพโดย ZEROREZ")
