@@ -193,78 +193,75 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-       # --- [GUIDED-HAND VERSION] ระบบจับมือเทรด (Dime! Specialized) ---
+        # --- [ACTIVE-UPDATE VERSION] คลิกปุ๊บ เปลี่ยนปั๊บ ---
         st.write("---")
         st.header("🤝 ระบบจับมือวางแผน (Guided Trader)")
 
-        # 1. หาราคาตลาดปัจจุบัน
-        current_val = 0.0
-        try:
-            if 'hist' in locals(): current_val = float(hist['Close'].iloc[-1])
-            elif 'df' in locals(): current_val = float(df['Close'].iloc[-1])
-            elif 'last_price' in locals(): current_val = float(last_price)
-        except: current_val = 0.0
-
-        # 2. ข้อมูลต้นทุน (คุณหนึ่งกรอกแค่ 2 ช่องนี้พอ)
+        # 1. ข้อมูลต้นทุน
         c1, c2 = st.columns(2)
         with c1:
-            cost = st.number_input("1. ต้นทุนเฉลี่ย ($)", value=0.0, step=0.0001, format="%.4f", key="c_vfinal")
+            cost = st.number_input("1. ต้นทุนเฉลี่ยต่อหุ้น ($)", value=0.0, step=0.0001, format="%.4f", key="c_vfinal")
         with c2:
             shares = st.number_input("2. หุ้นที่มี (เศษหุ้น)", value=0.0, step=1e-10, format="%.10f", key="s_vfinal")
 
         if cost > 0 and shares > 0:
-            # --- ระบบช่วยเลือกเป้าหมาย (ไม่ต้องเลื่อน Slider เองแล้ว) ---
+            # 2. เลือกเป้าหมาย (ใช้ Key เพื่อให้ระบบจำการคลิกได้แม่นยำ)
             st.write("### 🎯 3. เลือกเป้าหมายที่คุณพอใจ:")
             plan_choice = st.radio(
-                "เลือกระดับความคาดหวัง (เราคำนวณราคาที่เหมาะสมให้แล้ว):",
-                ["เอาค่าขนม (เน้นกำไรเร็ว 5%)", "หวังผลจริงจัง (มาตรฐาน 10%)", "เน้นรวยยาว (สายอดทน 20%+)"],
-                index=1, horizontal=True
+                "เลือกระดับความคาดหวัง:",
+                ["เอาค่าขนม (5%)", "หวังผลจริงจัง (10%)", "เน้นรวยยาว (20%)"],
+                index=1, horizontal=True, key="plan_radio"
             )
 
-            # กำหนดค่าตามแผนที่เลือก
-            if "เอาค่าขนม" in plan_choice: target_pct = 5.0
-            elif "หวังผลจริงจัง" in plan_choice: target_pct = 10.0
+            # --- [LOGIC UPDATE] คำนวณใหม่ทุกครั้งที่มีการเปลี่ยน plan_choice ---
+            if "5%" in plan_choice: target_pct = 5.0
+            elif "10%" in plan_choice: target_pct = 10.0
             else: target_pct = 20.0
 
             tp_price = cost * (1 + target_pct/100)
-            sl_price = cost * 0.95 # จุดตัดขาดทุนมาตรฐานที่ 5%
+            sl_price = cost * 0.95 
             initial_investment = cost * shares
             
-            st.info(f"📍 **ระบบตั้งเป้าให้คุณ:** จะขายที่ราคา **${tp_price:.4f}** (เพื่อกำไร {target_pct}%) | จุดถอยคือ **${sl_price:.4f}**")
+            st.info(f"📍 **ระบบตั้งเป้าให้คุณ:** ราคาเป้าหมาย **${tp_price:.4f}** | จุดถอย **${sl_price:.4f}**")
 
-            # 3. ตรวจสอบสถานะและสั่งการ
-            price_input = st.number_input("4. ราคาตลาดตอนนี้ ($)", value=current_val if current_val > 0 else 0.0, format="%.4f")
-            now_price = price_input if price_input > 0 else current_val
+            # 3. ส่วนเช็คสถานะตลาด
+            price_input = st.number_input("4. ราคาตลาดตอนนี้ที่เห็นใน Dime! ($)", value=0.0, format="%.4f", key="market_input")
+            
+            # ดึงราคาตลาดอัตโนมัติมาสำรองไว้
+            auto_price = 0.0
+            try:
+                if 'hist' in locals(): auto_price = float(hist['Close'].iloc[-1])
+                elif 'df' in locals(): auto_price = float(df['Close'].iloc[-1])
+            except: pass
+            
+            now_price = price_input if price_input > 0 else auto_price
 
             if now_price > 0:
                 current_value = now_price * shares
                 profit_loss = current_value - initial_investment
                 
                 st.write("---")
-                st.write("### 📢 สิ่งที่ต้องทำตอนนี้:")
+                st.write("### 📢 สรุปสิ่งที่ต้องทำ:")
 
+                # กรณีถึงเป้าขาย
                 if now_price >= tp_price:
-                    st.success(f"### 🎉 **กำไรถึงเป้า {target_pct}% แล้ว! (+${profit_loss:,.2f})**")
-                    st.write("**คำสั่ง: กดขายใน Dime! ตามยอดเงินนี้:**")
+                    st.success(f"### 🎉 กำไรถึงเป้า {target_pct}% แล้ว! (+${profit_loss:,.2f})")
                     
+                    # ตารางที่จะอัปเดตตามการคลิก Radio Button ข้างบน
                     st.table({
-                        "ระดับความอุ่นใจ": ["🛡️ ปลอดภัยที่สุด", "⚖️ สายสมดุล (แนะนำ)"],
+                        "ระดับความอุ่นใจ": ["🛡️ ปลอดภัยที่สุด (ขายหมด)", "⚖️ สายสมดุล (ขายคืนทุน)"],
                         "กดขายเป็นเงิน ($)": [f"${current_value:,.2f}", f"${initial_investment:,.2f}"],
-                        "เหตุผล": ["เก็บเงินเข้ากระเป๋าหมดเลย", "เอาเงินต้นคืนมาเก็บไว้ หุ้นที่เหลือถือฟรีลุ้นต่อ"]
+                        "ผลลัพธ์": ["รับเงินก้อนจบงาน", "ได้ทุนคืน หุ้นที่เหลือถือฟรี"]
                     })
                 
+                # กรณีหลุดจุดถอย
                 elif now_price <= sl_price:
-                    st.error(f"### 🚨 **ต้องถอยแล้ว! (ขาดทุน ${abs(profit_loss):,.2f})**")
-                    st.write(f"คำสั่ง: กดขายทิ้งทั้งหมดเป็นเงิน **${current_value:,.2f}** ทันที")
+                    st.error(f"### 🚨 ต้องถอยแล้ว! (ขาดทุน ${abs(profit_loss):,.2f})")
+                    st.write(f"คำสั่ง: กดขายทั้งหมดเป็นเงิน **${current_value:,.2f}**")
                 
+                # กรณียังไม่ถึงจุดขยับ
                 else:
-                    st.warning(f"### ⏳ **สถานะ: ยังไม่ใช่จังหวะขาย**")
-                    st.write(f"ราคาตอนนี้ ${now_price:.4f} ยังไม่ถึงจุดที่เราจะขยับ (เป้าคือ ${tp_price:.4f})")
-                    st.write(f"กำไรสะสมตอนนี้: **${profit_loss:,.2f}**")
+                    st.warning(f"### ⏳ ยังไม่ถึงเป้า (รอราคาไปที่ ${tp_price:.4f})")
+                    st.write(f"กำไรตอนนี้: **${profit_loss:,.2f}**")
         else:
-            st.write("👈 ใส่ต้นทุนและจำนวนหุ้นจาก Dime! แล้วผมจะบอกแผนให้ครับ")
-
-        # --- Footer ---
-        st.write("---") 
-        st.caption("พัฒนาโดย ZEROREZ | ระบบจับมือซื้อขายฉบับ Dime! Optimized")
-       
+            st.write("👈 ใส่ข้อมูลในข้อ 1 และ 2 เพื่อให้ระบบเริ่มคำนวณครับ")
