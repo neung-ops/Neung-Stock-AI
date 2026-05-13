@@ -193,21 +193,22 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # --- [FINAL UPDATE] เครื่องมือช่วยตัดสินใจแบบสมบูรณ์ ---
+        # --- [FINAL VERSION] แก้ไขเรื่องราคา $0.00 ---
         st.write("---")
         st.header("🧮 เครื่องมือช่วยตัดสินใจ (Full Version)")
         
-        # ดึงราคาล่าสุดจากระบบ (เช็กชื่อตัวแปรให้ตรงกับที่โชว์ $448.29 ด้านบน)
-        # สมมติว่าตัวแปรราคาล่าสุดของคุณคือ last_price
-        try:
-            current_val = float(last_price)
-        except:
-            current_val = 0.0
+        # ดึงราคาปัจจุบัน (ใช้ค่าที่คุณโชว์บนหน้าจอ $448.29)
+        # ผมจะพยายามดึงจากทุกชื่อตัวแปรที่น่าจะเป็นไปได้ในโค้ดของคุณ
+        current_val = 0.0
+        for price_var in ['last_price', 'current_price', 'close_price', 'price']:
+            if price_var in locals():
+                current_val = float(locals()[price_var])
+                break
 
         col1, col2 = st.columns(2)
         with col1:
-            # ให้คุณกรอกต้นทุนจากแอป Dime! ลงในช่องนี้
-            my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=0.0, step=0.01, help="ระบุราคาต้นทุนเฉลี่ยที่คุณซื้อมา")
+            # ใส่ต้นทุน (ค่าเริ่มต้นเป็น 0 เพื่อให้คุณกรอกเองได้แม่นๆ)
+            my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=0.0, step=0.01)
             
         with col2:
             profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10)
@@ -215,7 +216,7 @@ if ticker_input:
         # คำนวณแผนการ
         if my_cost > 0:
             tp_price = my_cost * (1 + profit_target_pct/100)
-            sl_price = my_cost * 0.95 # ตัดขาดทุนที่ 5%
+            sl_price = my_cost * 0.95 
 
             st.subheader("📍 แผนการซื้อขายของคุณ")
             c1, c2 = st.columns(2)
@@ -224,14 +225,18 @@ if ticker_input:
 
             st.write("---")
             # เช็กสถานะและแสดงแถบสี
-            if current_val >= tp_price:
-                st.success(f"🔥 **สถานะ: ถึงเป้าหมายกำไรแล้ว!** (ราคาปัจจุบัน ${current_val:.2f})")
-            elif current_val <= sl_price:
-                st.error(f"🚨 **สถานะ: หลุดจุดถอย (Stop Loss)!** (ราคาปัจจุบัน ${current_val:.2f})")
+            if current_val > 0:
+                if current_val >= tp_price:
+                    st.success(f"🔥 **สถานะ: ถึงเป้าหมายกำไรแล้ว!** (ราคาตลาดตอนนี้ ${current_val:.2f})")
+                elif current_val <= sl_price:
+                    st.error(f"🚨 **สถานะ: หลุดจุดถอย (Stop Loss)!** (ราคาตลาดตอนนี้ ${current_val:.2f})")
+                else:
+                    st.info(f"⏳ **สถานะ: ถือต่อไป (Hold)** - ราคาตลาดปัจจุบัน ${current_val:.2f} ยังอยู่ในแผน")
             else:
-                st.info(f"⏳ **สถานะ: ถือต่อไป (Hold)** - ราคาปัจจุบัน ${current_val:.2f} ยังอยู่ในแผน")
+                # กรณีที่ระบบยังหาราคาตลาดไม่เจอ (แสดงเป็น $0.00)
+                st.warning(f"⚠️ ระบบกำลังดึงราคาตลาด... (กรุณารอครู่หนึ่ง หรือเช็กราคา ${current_val:.2f} เทียบกับเป้าหมายด้านบน)")
         else:
-            st.warning("👈 กรุณาใส่ 'ต้นทุนของคุณ' เพื่อเริ่มการคำนวณสถานะครับ")
+            st.warning("👈 กรุณาใส่ 'ต้นทุนของคุณ' (ราคาที่ซื้อมาจาก Dime!) เพื่อเริ่มคำนวณครับ")
 
         # --- ส่วนท้าย ---
         now_thai = datetime.now() + timedelta(hours=7) 
