@@ -193,28 +193,47 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # 1. รับค่าจากผู้ใช้
+        # --- เริ่มส่วนเครื่องมือช่วยตัดสินใจ (แบบสมบูรณ์) ---
+        st.write("---")
         st.header("🧮 เครื่องมือช่วยตัดสินใจ (Beta)")
         
+        # 1. ค้นหาราคาปัจจุบันจากระบบของคุณ (กัน Error)
+        try:
+            # พยายามดึงราคาล่าสุดมาใช้เป็นต้นทุนเริ่มต้น
+            current_val = float(last_price) 
+        except:
+            # ถ้าหาไม่เจอจริงๆ ให้เริ่มที่ 0.0
+            current_val = 0.0
+
         col1, col2 = st.columns(2)
         with col1:
-            # ใช้เลข 0 เป็นค่าเริ่มต้นไปก่อนถ้าหาตัวแปรราคาไม่เจอ
-            my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=0.0)
+            my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=current_val)
             
         with col2:
             profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10)
 
-        # 2. คำนวณ (ใช้ค่าที่กรอกมา)
+        # 2. คำนวณตัวเลขแผนการ
         tp_price = my_cost * (1 + profit_target_pct/100)
-        sl_price = my_cost * 0.95 
+        sl_price = my_cost * 0.95 # ตัดขาดทุนที่ 5%
 
-        # 3. แสดงผล (แก้ตรง {ticker} เป็นคำทั่วไปเพื่อกัน Error)
-        st.subheader("📍 แผนการสำหรับหุ้นตัวนี้") 
+        st.subheader("📍 แผนการสำหรับหุ้นตัวนี้")
+        
+        # แสดงผลราคาเป้าหมาย
         st.write(f"✅ **ควรขายทำกำไรที่ราคา:** `${tp_price:.2f}` (เมื่อกำไร {profit_target_pct}%)")
         st.write(f"⚠️ **ควรตัดขาดทุน (Stop Loss) ที่:** `${sl_price:.2f}` (เพื่อรักษาเงินต้น)")
 
+        # 3. ส่วนแจ้งเตือนสถานะแบบเข้าใจง่าย (ที่หายไป)
+        # ตรวจสอบสถานะราคาปัจจุบันเทียบกับแผนการ
+        if current_val > 0 and my_cost > 0:
+            if current_val >= tp_price:
+                st.success(f"🎉 ราคาปัจจุบัน (${current_val:.2f}) ถึงเป้าหมายแล้ว! พิจารณาแบ่งขายทำกำไรครับ")
+            elif current_val <= sl_price:
+                st.error(f"🚨 ราคาปัจจุบัน (${current_val:.2f}) หลุดจุดถอย! ควรพิจารณาขายรักษาทุน")
+            else:
+                st.info(f"⏳ ราคาปัจจุบัน (${current_val:.2f}) ยังอยู่ในช่วงถือครองตามแผน")
+
         # --- ส่วนท้ายของแอป (Footer) ---
         now_thai = datetime.now() + timedelta(hours=7) 
-        st.write("---")
-        st.caption("แนะนำ: เช็คสัญญาณหลังตลาดเปิด 30 นาที (ประมาณ 21:00 น. หรือ 22:00 น. ตามฤดูกาล) เพื่อให้ AI ประมวลผลจากทิศทางราคาที่นิ่งแล้ว")
-        st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (Thailand Time) | ข้อมูลสนับสนุนโดย Yahoo Finance | พัฒนาแอพโดย ZEROREZ")
+        st.write("---") 
+        st.caption("แนะนำ: เช็คสัญญาณหลังตลาดเปิด 30 นาที เพื่อให้ AI ประมวลผลจากราคาที่นิ่งแล้ว")
+        st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (Thailand Time) | พัฒนาโดย ZEROREZ")
