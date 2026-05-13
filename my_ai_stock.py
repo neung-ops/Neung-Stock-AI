@@ -193,8 +193,7 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # 1. รับค่าจากผู้ใช้ (ทำงานได้แล้วจากภาพ image_2bc8be.png)
-        st.write("---")
+        # 1. รับค่าจากผู้ใช้
         st.header("🧮 เครื่องมือช่วยตัดสินใจ (Beta)")
         
         col1, col2 = st.columns(2)
@@ -216,5 +215,6 @@ if ticker_input:
 
         # --- ส่วนท้ายของแอป (Footer) ---
         now_thai = datetime.now() + timedelta(hours=7) 
-        st.write("---") 
+        st.write("---")
+        st.caption("แนะนำ: เช็คสัญญาณหลังตลาดเปิด 30 นาที (ประมาณ 21:00 น. หรือ 22:00 น. ตามฤดูกาล) เพื่อให้ AI ประมวลผลจากทิศทางราคาที่นิ่งแล้ว")
         st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (Thailand Time) | ข้อมูลสนับสนุนโดย Yahoo Finance | พัฒนาแอพโดย ZEROREZ")
