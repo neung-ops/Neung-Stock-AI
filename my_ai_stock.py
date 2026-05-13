@@ -193,43 +193,79 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # --- [DECISION-SUPPORT VERSION] รีพอร์ทเน้นการเปรียบเทียบ ---
-        if cost > 0 and shares > 0 and now_price > 0:
-            initial_investment = cost * shares
-            current_value = now_price * shares
-            profit_now = current_value - initial_investment
-            
-            # คำนวณยอดเงินถ้าไปถึงเป้าหมายที่เลือกไว้
-            target_value = tp_price * shares
-            target_profit = target_value - initial_investment
+        # --- [TRUE SMART REPORT] แก้บั๊ก NameError + รีพอร์ทเน้นการตัดสินใจ ---
+        st.write("---")
+        st.header("🧠 ระบบวิเคราะห์และช่วยตัดสินใจ (Smart Guide)")
 
-            st.write("### 📊 ตารางเปรียบเทียบเพื่อการตัดสินใจ (Dime! Amount)")
+        # ตรวจสอบเบื้องต้นว่ามีข้อมูลพื้นฐานครบหรือยัง
+        if 'cost' in locals() and 'shares' in locals() and cost > 0 and shares > 0:
             
-            # สร้างตารางที่แสดงผลลัพธ์ 3 ทางเลือกในทุกสถานการณ์
-            decision_data = {
-                "ทางเลือก": ["ขายตอนนี้เลย (Market)", "รอขายตามเป้า (Target)", "ขายคืนทุน (Safe)"],
-                "ยอดเงินที่ต้องกรอกใน Dime! ($)": [
-                    f"${current_value:,.2f}", 
-                    f"${target_value:,.2f}", 
-                    f"${initial_investment:,.2f}"
-                ],
-                "กำไรที่จะได้รับจริง ($)": [
-                    f"${profit_now:,.2f}", 
-                    f"${target_profit:,.2f}", 
-                    "0.00 (ได้ทุนคืนครบ)"
-                ],
-                "สถานะความคุ้มค่า": [
-                    "ได้เงินทันที" if profit_now > 0 else "ยอมตัดขาดทุน",
-                    f"รออีกสักนิด (เป้า {target_pct}%)",
-                    "หุ้นที่เหลือจะกลายเป็นหุ้นฟรี!"
-                ]
-            }
-            st.table(decision_data)
+            # ดึงราคาตลาดล่าสุด (ถ้ากรอกเองใช้เลขที่กรอก ถ้าไม่กรอกใช้ราคาดึงอัตโนมัติ)
+            market_input = st.session_state.get('market_input', 0.0)
+            
+            # ป้องกัน NameError โดยการเช็ค auto_price ก่อน
+            auto_price = 0.0
+            if 'hist' in locals(): auto_price = float(hist['Close'].iloc[-1])
+            elif 'df' in locals(): auto_price = float(df['Close'].iloc[-1])
+            
+            # กำหนดค่า now_price อย่างปลอดภัย
+            current_price = market_input if market_input > 0 else auto_price
 
-            # คำแนะนำเพิ่มเติม
-            if now_price >= tp_price:
-                st.success(f"💡 **มุมมอง AI:** ราคาตอนนี้ (${now_price:.4f}) สูงกว่าเป้าแล้ว แนะนำให้ใช้ทางเลือก **'ขายคืนทุน'** เพื่อเก็บหุ้นฟรีไว้รันเทรดต่อครับ")
-            elif now_price < cost:
-                st.error(f"💡 **มุมมอง AI:** ตอนนี้ติดลบอยู่ หากราคาหลุด ${sl_price:.4f} แนะนำให้ขายทางเลือก **'ขายตอนนี้เลย'** เพื่อหยุดความเสียหายครับ")
+            if current_price > 0:
+                initial_investment = cost * shares
+                current_value = current_price * shares
+                profit_now = current_value - initial_investment
+                
+                # คำนวณยอดเป้าหมาย (TP) และ จุดคัท (SL)
+                target_value = tp_price * shares
+                target_profit = target_value - initial_investment
+                
+                st.write(f"📊 **เปรียบเทียบสถานะปัจจุบัน vs เป้าหมาย ({plan_choice})**")
+
+                # สร้าง Data สำหรับ Decision Table
+                decision_table = {
+                    "กลยุทธ์การขาย": ["💰 ขายตอนนี้เลย", "🎯 ขายตามเป้าที่ตั้ง", "🛡️ ขายคืนทุน (ถือฟรี)"],
+                    "ยอดเงินที่ต้องกรอกใน Dime!": [
+                        f"${current_value:,.2f}", 
+                        f"${target_value:,.2f}", 
+                        f"${initial_investment:,.2f}"
+                    ],
+                    "ผลกำไรที่จะได้รับ": [
+                        f"${profit_now:,.2f}", 
+                        f"${target_profit:,.2f}", 
+                        "ได้ทุนคืน (กำไรอยู่ในหุ้น)"
+                    ],
+                    "คำแนะนำจาก AI": []
+                }
+
+                # เติมคำแนะนำตามสถานการณ์จริง
+                if current_price >= tp_price:
+                    # กรณีถึงเป้าแล้ว
+                    decision_table["คำแนะนำจาก AI"] = [
+                        "เก็บกำไรก้อนใหญ่ทันที",
+                        "ขายตามแผนที่วางไว้",
+                        "แนะให้ทำ! เพื่อถือหุ้นฟรีลดความเสี่ยง"
+                    ]
+                    st.success(f"🔥 **กำไรเข้าเป้า {target_pct}% เรียบร้อย!** ราคาตอนนี้ ${current_price:.4f} สูงกว่าเป้าที่คุณตั้งไว้")
+                elif current_price < cost:
+                    # กรณีขาดทุน
+                    decision_table["คำแนะนำจาก AI"] = [
+                        "ยอมเจ็บสั้นดีกว่าปวดนาน",
+                        "ยังไปไม่ถึง (ต้องรออีกไกล)",
+                        "เป็นไปไม่ได้ในตอนนี้"
+                    ]
+                    st.error(f"🚨 **สถานะติดลบ!** ต่ำกว่าทุนอยู่ ${abs(profit_now):,.2f}")
+                else:
+                    # กรณีกำไรนิดหน่อยแต่ยังไม่ถึงเป้า
+                    decision_table["คำแนะนำจาก AI"] = [
+                        "ใจร้อน (ได้กำไรนิดเดียว)",
+                        "ถือต่อ (ตามแผน)",
+                        "ลดความเสี่ยง (เอาทุนออกมาก่อน)"
+                    ]
+                    st.warning(f"⏳ **ราคากำลังเดินทาง...** ขาดอีก ${ (target_value - current_value):,.2f} จะถึงเป้าหมาย")
+
+                st.table(decision_table)
             else:
-                st.warning("💡 **มุมมอง AI:** ราคากำลังเดินทางไปหาเป้าหมาย แนะนำให้ **'ถือต่อ'** ครับ")
+                st.info("💡 กรุณากรอกราคาตลาดจาก Dime! ในช่องข้อ 4 เพื่อเริ่มการวิเคราะห์ครับ")
+        else:
+            st.info("👈 กรุณากรอก 'ต้นทุน' และ 'จำนวนหุ้น' ให้ครบถ้วนก่อนครับ")
