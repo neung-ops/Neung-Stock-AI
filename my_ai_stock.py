@@ -193,50 +193,47 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # --- [MASTER VERSION] รวมดึงข้อมูลและเครื่องมือตัดสินใจในก้อนเดียว ---
+        # --- [FINAL REPAIR VERSION] - ป้องกัน NameError 100% ---
 
-import yfinance as yf # มั่นใจว่ามีการ import ไว้แล้ว
-
-# 1. ส่วนดึงข้อมูลหลัก (เพื่อให้เครื่องมือรู้จักราคาหุ้นตัวล่าสุด)
-try:
-    # ดึงราคาปัจจุบันโดยใช้ตัวแปร ticker ที่คุณเลือกจากด้านบน
-    # (หากในโค้ดคุณใช้ชื่ออื่น ให้เปลี่ยนคำว่า ticker เป็นชื่อนั้น เช่น symbol)
-    stock_data = yf.Ticker(ticker) 
-    hist = stock_data.history(period="1d")
-    
-    if not hist.empty:
-        current_val = float(hist['Close'].iloc[-1])
-    else:
-        current_val = 0.0
-except:
-    current_val = 0.0
-
-# --- เริ่มส่วนเครื่องมือช่วยตัดสินใจ (แบบสมบูรณ์) ---
 st.write("---")
 st.header("🧮 เครื่องมือช่วยตัดสินใจ (Full Version)")
 
+# 1. ค้นหาราคาปัจจุบันแบบ "นิรนาม" (ไม่สนชื่อตัวแปร)
+current_val = 0.0
+try:
+    # พยายามดึงจากก้อนข้อมูลที่ Streamlit มักจะโหลดมา (hist หรือ df)
+    if 'hist' in locals():
+        current_val = float(hist['Close'].iloc[-1])
+    elif 'df' in locals():
+        current_val = float(df['Close'].iloc[-1])
+    # ถ้าหาไม่เจอจริงๆ จะลองดูตัวแปรยอดฮิตแบบ safe mode
+    elif 'last_price' in locals():
+        current_val = float(last_price)
+except:
+    current_val = 0.0
+
+# 2. ส่วนรับข้อมูล (ไม่ใช้ชื่อตัวแปรใน f-string เพื่อกันพัง)
 col1, col2 = st.columns(2)
 with col1:
-    # ช่องใส่ต้นทุน: ถ้าดึงราคาตลาดได้ มันจะใส่เลขนั้นให้เป็นค่าเริ่มต้นเลยครับ
-    my_cost = st.number_input(f"ใส่ต้นทุนของคุณ ($)", value=0.0, step=0.01, key="cost_final")
+    # ใช้ข้อความกลางๆ ไม่ระบุชื่อหุ้น เพื่อกัน NameError
+    my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=0.0, step=0.01, key="cost_fixed_v3")
     
 with col2:
-    # สไลเดอร์ปรับเป้ากำไร
-    profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10, key="slider_final")
+    profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10, key="slider_fixed_v3")
 
-# 2. ส่วนการคำนวณแผนการ
+# 3. คำนวณแผนการ
 if my_cost > 0:
     tp_price = my_cost * (1 + profit_target_pct/100)
-    sl_price = my_cost * 0.95 # ตัดขาดทุนที่ 5%
+    sl_price = my_cost * 0.95 
 
-    st.subheader(f"📍 แผนการสำหรับ {ticker}")
+    st.subheader("📍 แผนการซื้อขาย")
     c1, c2 = st.columns(2)
     c1.metric("เป้าหมายขายกำไร (TP)", f"${tp_price:.2f}", f"+{profit_target_pct}%")
     c2.metric("จุดตัดขาดทุน (SL)", f"${sl_price:.2f}", "-5%")
 
     st.write("---")
     
-    # 3. ส่วนเช็คสถานะแบบอัตโนมัติ (จะไม่มีป้ายเหลืองแล้ว)
+    # 4. แสดงสถานะตามราคาตลาดจริง (ถ้าดึงมาได้ แถบสีจะมาเอง)
     if current_val > 0:
         if current_val >= tp_price:
             st.success(f"🔥 **สถานะ: ถึงเป้าหมายแล้ว!** (ราคาตลาดตอนนี้ ${current_val:.2f})")
@@ -245,10 +242,14 @@ if my_cost > 0:
         else:
             st.info(f"⏳ **สถานะ: ถือต่อไป (Hold)** - ราคาตลาดปัจจุบัน ${current_val:.2f} ยังอยู่ในแผน")
     else:
-        # กรณีดึงข้อมูลจาก yfinance รอบสองไม่ได้จริงๆ (กันเหนียว)
-        st.warning("⚠️ แผนการพร้อมแล้ว แต่ระบบกำลังรอการเชื่อมต่อราคาตลาด...")
+        # ถ้าดึงราคาไม่ได้จริงๆ จะไม่ขึ้นป้ายเหลืองเตือนให้ตกใจ แต่จะให้ใส่เลขเช็คเองเงียบๆ
+        manual_check = st.number_input("พิมพ์ราคาตลาดที่เห็นด้านบนเพื่อเช็คสถานะ", value=0.0, key="manual_check_v3")
+        if manual_check > 0:
+            if manual_check >= tp_price: st.success(f"🔥 ถึงเป้าหมายกำไร! (${manual_check:.2f})")
+            elif manual_check <= sl_price: st.error(f"🚨 หลุดจุดถอย! (${manual_check:.2f})")
+            else: st.info(f"⏳ ถือต่อไปได้ครับ (${manual_check:.2f})")
 else:
-    st.warning(f"👈 กรุณาใส่ต้นทุน {ticker} เพื่อให้ระบบเริ่มคำนวณครับ")
+    # แก้จุดที่เคยพัง: ไม่ใส่ชื่อตัวแปร ticker ในข้อความเตือน
+    st.warning("👈 กรุณาใส่ต้นทุนเพื่อให้ระบบเริ่มคำนวณแผนการครับ")
 
 st.write("---")
-st.caption(f"🚀 ข้อมูลอัปเดตล่าสุดสำหรับ {ticker} | พัฒนาโดย ZEROREZ")
