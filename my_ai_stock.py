@@ -193,63 +193,70 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # --- [FINAL REPAIR VERSION] - ป้องกัน NameError 100% ---
+        # --- [USER-FRIENDLY VERSION] ภาษาชาวบ้าน อ่านง่าย สั่งงานชัด ---
+        st.write("---")
+        st.header("🧮 เครื่องมือช่วยตัดสินใจ (ฉบับเข้าใจง่ายที่สุด)")
 
-st.write("---")
-st.header("🧮 เครื่องมือช่วยตัดสินใจ (Full Version)")
+        # 1. หาราคาตลาดปัจจุบัน
+        current_val = 0.0
+        try:
+            if 'hist' in locals(): current_val = float(hist['Close'].iloc[-1])
+            elif 'df' in locals(): current_val = float(df['Close'].iloc[-1])
+            elif 'last_price' in locals(): current_val = float(last_price)
+        except: current_val = 0.0
 
-# 1. ค้นหาราคาปัจจุบันแบบ "นิรนาม" (ไม่สนชื่อตัวแปร)
-current_val = 0.0
-try:
-    # พยายามดึงจากก้อนข้อมูลที่ Streamlit มักจะโหลดมา (hist หรือ df)
-    if 'hist' in locals():
-        current_val = float(hist['Close'].iloc[-1])
-    elif 'df' in locals():
-        current_val = float(df['Close'].iloc[-1])
-    # ถ้าหาไม่เจอจริงๆ จะลองดูตัวแปรยอดฮิตแบบ safe mode
-    elif 'last_price' in locals():
-        current_val = float(last_price)
-except:
-    current_val = 0.0
+        # 2. กรอกข้อมูลแบบง่ายๆ
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            cost = st.number_input("1. ซื้อมาหุ้นละกี่ดอลล์ ($)", value=0.0, key="c_final")
+        with c2:
+            shares = st.number_input("2. มีอยู่ในมือทั้งหมดกี่หุ้น", value=0, key="s_final")
+        with c3:
+            target = st.slider("3. อยากได้กำไรกี่ % ดี?", 5, 50, 10, key="p_final")
 
-# 2. ส่วนรับข้อมูล (ไม่ใช้ชื่อตัวแปรใน f-string เพื่อกันพัง)
-col1, col2 = st.columns(2)
-with col1:
-    # ใช้ข้อความกลางๆ ไม่ระบุชื่อหุ้น เพื่อกัน NameError
-    my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=0.0, step=0.01, key="cost_fixed_v3")
-    
-with col2:
-    profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10, key="slider_fixed_v3")
+        if cost > 0 and shares > 0:
+            take_profit = cost * (1 + target/100)
+            stop_loss = cost * 0.95 
+            
+            # สรุปแผนแบบไม่ต้องใช้ศัพท์เทคนิค
+            st.info(f"💡 **สรุปแผน:** ถ้าถึง **${take_profit:.2f}** ให้รีบขายเอาเงินเข้ากระเป๋า | แต่ถ้าหล่นไปถึง **${stop_loss:.2f}** ให้รีบหนีทันที!")
 
-# 3. คำนวณแผนการ
-if my_cost > 0:
-    tp_price = my_cost * (1 + profit_target_pct/100)
-    sl_price = my_cost * 0.95 
+            # 3. ส่วนเช็คสถานะและสั่งการ
+            price_input = st.number_input("4. ราคาตลาดตอนนี้ที่เห็นคือเท่าไหร่ ($)", value=current_val if current_val > 0 else 0.0)
+            now_price = price_input if price_input > 0 else current_val
 
-    st.subheader("📍 แผนการซื้อขาย")
-    c1, c2 = st.columns(2)
-    c1.metric("เป้าหมายขายกำไร (TP)", f"${tp_price:.2f}", f"+{profit_target_pct}%")
-    c2.metric("จุดตัดขาดทุน (SL)", f"${sl_price:.2f}", "-5%")
-
-    st.write("---")
-    
-    # 4. แสดงสถานะตามราคาตลาดจริง (ถ้าดึงมาได้ แถบสีจะมาเอง)
-    if current_val > 0:
-        if current_val >= tp_price:
-            st.success(f"🔥 **สถานะ: ถึงเป้าหมายแล้ว!** (ราคาตลาดตอนนี้ ${current_val:.2f})")
-        elif current_val <= sl_price:
-            st.error(f"🚨 **สถานะ: หลุดจุดถอย!** (ราคาตลาดตอนนี้ ${current_val:.2f})")
+            if now_price > 0:
+                st.write("### 📢 สิ่งที่คุณต้องทำตอนนี้:")
+                
+                # สถานการณ์: กำไรทะลุเป้า
+                if now_price >= take_profit:
+                    total_profit = (now_price - cost) * shares
+                    st.success(f"### 🔥 **รวยแล้ว! กำไรทะลุเป้าไป ${total_profit:,.2f}**")
+                    
+                    st.write("**เลือกทำตามตารางนี้ได้เลยครับ:**")
+                    st.table({
+                        "แผนการ": ["A: ขายหมดเกลี้ยง", "B: ขายครึ่งเดียวเอาทุนคืน"],
+                        "จำนวนหุ้นที่ต้องขาย": [f"{shares} หุ้น", f"{shares // 2} หุ้น"],
+                        "เงินที่จะได้รับจริง ($)": [f"${now_price * shares:,.2f}", f"${now_price * (shares // 2):,.2f}"],
+                        "ผลลัพธ์": ["จบงาน สบายใจ", f"ได้ทุนคืน แล้วถือลุ้นต่ออีก {shares - (shares // 2)} หุ้น"]
+                    })
+                
+                # สถานการณ์: ขาดทุนถึงจุดต้องหนี
+                elif now_price <= stop_loss:
+                    loss = (cost - now_price) * shares
+                    st.error(f"### 🚨 **ต้องยอมแพ้แล้ว! กดขายทิ้งทันที**")
+                    st.write(f"ถ้าขายตอนนี้จะขาดทุนที่ **${loss:,.2f}** ยอมเจ็บแค่นี้เพื่อรักษาเงินส่วนใหญ่ไว้ไปเล่นตัวใหม่ครับ")
+                
+                # สถานการณ์: ราคายังนิ่งๆ
+                else:
+                    diff = (now_price - cost) * shares
+                    st.warning(f"### ⏳ **นั่งนิ่งๆ จิบกาแฟรอไปก่อน**")
+                    st.write(f"ตอนนี้สถานะคือ {'กำไร' if diff > 0 else 'ขาดทุน'} อยู่ **${abs(diff):,.2f}** ราคายังไม่ถึงจุดที่ต้องขยับตามแผนครับ")
         else:
-            st.info(f"⏳ **สถานะ: ถือต่อไป (Hold)** - ราคาตลาดปัจจุบัน ${current_val:.2f} ยังอยู่ในแผน")
-    else:
-        # ถ้าดึงราคาไม่ได้จริงๆ จะไม่ขึ้นป้ายเหลืองเตือนให้ตกใจ แต่จะให้ใส่เลขเช็คเองเงียบๆ
-        manual_check = st.number_input("พิมพ์ราคาตลาดที่เห็นด้านบนเพื่อเช็คสถานะ", value=0.0, key="manual_check_v3")
-        if manual_check > 0:
-            if manual_check >= tp_price: st.success(f"🔥 ถึงเป้าหมายกำไร! (${manual_check:.2f})")
-            elif manual_check <= sl_price: st.error(f"🚨 หลุดจุดถอย! (${manual_check:.2f})")
-            else: st.info(f"⏳ ถือต่อไปได้ครับ (${manual_check:.2f})")
-else:
-    # แก้จุดที่เคยพัง: ไม่ใส่ชื่อตัวแปร ticker ในข้อความเตือน
-    st.warning("👈 กรุณาใส่ต้นทุนเพื่อให้ระบบเริ่มคำนวณแผนการครับ")
+            st.write("👈 รบกวนคุณหนึ่งกรอกเลขในข้อ 1 กับ 2 ให้ผมหน่อยครับ เดี๋ยวผมช่วยวางแผนให้")
 
-st.write("---")
+        # --- Footer ---
+        from datetime import datetime, timedelta
+        now_thai = datetime.now() + timedelta(hours=7) 
+        st.write("---") 
+        st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (TH) | พัฒนาโดย ZEROREZ")
