@@ -211,7 +211,7 @@ def render_smart_guide(market_price: float = 0.0):
             },
         ]
 
-        st.write("#### เปรียบเทียบทางเลือก — วางเมาส์ที่ **?** เพื่ออ่านคำอธิบาย")
+        st.write("#### เปรียบเทียบทางเลือก")
         html_key = f"{cost}_{shares}_{current_price}_{target_pct}"
         html = build_strategy_html(rows, highlight, html_key)
         components.html(html, height=320, scrolling=False)
