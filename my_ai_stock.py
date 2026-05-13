@@ -208,6 +208,8 @@ if ticker_input:
             # เลือกเป้าหมายกำไรที่ต้องการ
             profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10)
 
+        current_price = last_price # เปลี่ยน last_price เป็นชื่อตัวแปรราคาที่คุณมีในโค้ด
+
         # คำนวณตัวเลขเป้าหมายและจุดตัดขาดทุน
         tp_price = my_cost * (1 + profit_target_pct/100)
         sl_price = my_cost * 0.95 # ตั้งค่าตัดขาดทุนอัตโนมัติที่ 5%
