@@ -193,9 +193,9 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # --- [STABLE VERSION] เพิ่มปุ่มล็อกข้อมูล กันเลขหาย ---
+        # --- [FUTURE-PROOF VERSION] รองรับทศนิยมสูงสุด 10 ตำแหน่ง ---
         st.write("---")
-        st.header("🧮 เครื่องมือช่วยตัดสินใจ (ฉบับยืนยันด้วยปุ่ม)")
+        st.header("🧮 เครื่องมือช่วยตัดสินใจ (ฉบับรองรับอนาคต)")
 
         # 1. หาราคาตลาดปัจจุบัน
         current_val = 0.0
@@ -205,55 +205,54 @@ if ticker_input:
             elif 'last_price' in locals(): current_val = float(last_price)
         except: current_val = 0.0
 
-        # 2. กรอกข้อมูล (เพิ่ม Key เพื่อให้ค่าค้างไว้ไม่หายง่ายๆ)
+        # 2. กรอกข้อมูลแบบละเอียดยิบ (รองรับทุกความเป็นไปได้)
         c1, c2, c3 = st.columns(3)
         with c1:
-            cost = st.number_input("1. ซื้อมาหุ้นละกี่ดอลล์ ($)", value=0.0, step=0.01, key="input_cost")
+            # ต้นทุน: รองรับละเอียดมากเผื่อเหรียญหรือหุ้นปั่น
+            cost = st.number_input("1. ซื้อมาหุ้นละกี่ดอลล์ ($)", value=0.0, step=0.000001, format="%.6f", key="c_vfinal")
         with c2:
-            shares = st.number_input("2. มีอยู่ในมือทั้งหมดกี่หุ้น", value=0, step=1, key="input_shares")
+            # จำนวนหุ้น: ปรับเป็น 10 ตำแหน่ง รองรับเศษหุ้นทุกรูปแบบในอนาคต
+            shares = st.number_input("2. มีอยู่ในมือทั้งหมดกี่หุ้น", value=0.0, step=1e-10, format="%.10f", key="s_vfinal")
         with c3:
-            target = st.slider("3. อยากได้กำไรกี่ % ดี?", 5, 50, 10, key="input_target")
+            # เป้าหมายกำไร
+            target = st.slider("3. อยากได้กำไรกี่ % ดี?", 5, 50, 10, key="p_vfinal")
 
-        # เพิ่มปุ่มยืนยันเพื่อให้เริ่มการคำนวณ
-        submit_button = st.button("🚀 ยืนยันข้อมูลและเริ่มวางแผน")
+        # 3. คำนวณแผนการ
+        if cost > 0 and shares > 0:
+            take_profit = cost * (1 + target/100)
+            stop_loss = cost * 0.95 
+            
+            st.info(f"💡 **สรุปแผน:** ถ้าถึง **${take_profit:.6f}** ให้รีบขาย | แต่ถ้าหล่นไปถึง **${stop_loss:.6f}** ให้รีบหนี!")
 
-        # ระบบจะทำงานต่อเมื่อกดปุ่ม หรือ มีข้อมูลค้างไว้แล้วเท่านั้น
-        if submit_button or (cost > 0 and shares > 0):
-            if cost > 0 and shares > 0:
-                take_profit = cost * (1 + target/100)
-                stop_loss = cost * 0.95 
+            # 4. ส่วนเช็คสถานะ
+            price_input = st.number_input("4. ราคาตลาดตอนนี้ ($)", value=current_val if current_val > 0 else 0.0, format="%.4f", key="m_price")
+            now_price = price_input if price_input > 0 else current_val
+
+            if now_price > 0:
+                st.write("### 📢 สิ่งที่คุณต้องทำตอนนี้:")
                 
-                st.info(f"💡 **สรุปแผน:** ถ้าถึง **${take_profit:.2f}** ให้รีบขายเอาเงินเข้ากระเป๋า | แต่ถ้าหล่นไปถึง **${stop_loss:.2f}** ให้รีบหนีทันที!")
-
-                # 3. ส่วนเช็คสถานะ
-                price_input = st.number_input("4. ราคาตลาดตอนนี้ที่เห็นคือเท่าไหร่ ($)", value=current_val if current_val > 0 else 0.0, key="input_market_price")
-                now_price = price_input if price_input > 0 else current_val
-
-                if now_price > 0:
-                    st.write("### 📢 สิ่งที่คุณต้องทำตอนนี้:")
+                if now_price >= take_profit:
+                    total_profit = (now_price - cost) * shares
+                    st.success(f"### 🔥 **รวยแล้ว! กำไรทะลุเป้าไป ${total_profit:,.2f}**")
                     
-                    if now_price >= take_profit:
-                        total_profit = (now_price - cost) * shares
-                        st.success(f"### 🔥 **รวยแล้ว! กำไรทะลุเป้าไป ${total_profit:,.2f}**")
-                        
-                        st.table({
-                            "แผนการ": ["A: ขายหมดเกลี้ยง", "B: ขายครึ่งเดียวเอาทุนคืน"],
-                            "จำนวนหุ้นที่ต้องขาย": [f"{shares} หุ้น", f"{shares // 2} หุ้น"],
-                            "เงินที่จะได้รับจริง ($)": [f"${now_price * shares:,.2f}", f"${now_price * (shares // 2):,.2f}"],
-                            "ผลลัพธ์": ["จบงาน สบายใจ", f"ได้ทุนคืน แล้วถือลุ้นต่ออีก {shares - (shares // 2)} หุ้น"]
-                        })
-                    
-                    elif now_price <= stop_loss:
-                        loss = (cost - now_price) * shares
-                        st.error(f"### 🚨 **ต้องยอมแพ้แล้ว! กดขายทิ้งทันที**")
-                        st.write(f"ถ้าขายตอนนี้จะขาดทุนที่ **${loss:,.2f}**")
-                    
-                    else:
-                        diff = (now_price - cost) * shares
-                        st.warning(f"### ⏳ **นั่งนิ่งๆ จิบกาแฟรอไปก่อน**")
-                        st.write(f"ตอนนี้สถานะคือ {'กำไร' if diff > 0 else 'ขาดทุน'} อยู่ **${abs(diff):,.2f}**")
-            else:
-                st.warning("⚠️ กรุณากรอกเลขในข้อ 1 และ 2 ก่อนกดปุ่มครับ")
+                    st.table({
+                        "แผนการ": ["A: ขายหมดเกลี้ยง", "B: ขายครึ่งเดียวเอาทุนคืน"],
+                        "จำนวนหุ้นที่ต้องขาย": [f"{shares:.10f} หุ้น", f"{(shares / 2):.10f} หุ้น"],
+                        "เงินที่จะได้รับจริง ($)": [f"${(now_price * shares):,.2f}", f"${(now_price * (shares / 2)):,.2f}"],
+                        "ผลลัพธ์": ["จบงาน สบายใจ", f"ถือลุ้นต่ออีก {(shares / 2):.10f} หุ้น"]
+                    })
+                
+                elif now_price <= stop_loss:
+                    loss = (cost - now_price) * shares
+                    st.error(f"### 🚨 **ต้องยอมแพ้แล้ว! กดขายทิ้งทันที**")
+                    st.write(f"ถ้าขายตอนนี้จะขาดทุนที่ **${loss:,.2f}**")
+                
+                else:
+                    diff = (now_price - cost) * shares
+                    st.warning(f"### ⏳ **นั่งนิ่งๆ จิบกาแฟรอไปก่อน**")
+                    st.write(f"ตอนนี้สถานะคือ {'กำไร' if diff > 0 else 'ขาดทุน'} อยู่ **${abs(diff):,.2f}**")
+        else:
+            st.write("👈 กรุณากรอกข้อมูลให้ครบถ้วนเพื่อเริ่มวางแผนครับ")
 
         # --- Footer ---
         from datetime import datetime, timedelta
