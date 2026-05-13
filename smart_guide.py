@@ -79,7 +79,7 @@ def build_strategy_html(rows: list, highlight_idx: int, key: str) -> str:
 
 def render_smart_guide(market_price: float = 0.0):
     st.write("---")
-    st.header("🧠 ระบบช่วยตัดสินใจ")
+    st.header("🧠 ระบบช่วยตัดสินใจขาย")
 
     cost = shares = tp_price = sl_price = 0.0
 
