@@ -193,9 +193,9 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # --- [FUTURE-PROOF VERSION] รองรับทศนิยมสูงสุด 10 ตำแหน่ง ---
+       # --- [GUIDED-HAND VERSION] ระบบจับมือเทรด (Dime! Specialized) ---
         st.write("---")
-        st.header("🧮 เครื่องมือช่วยตัดสินใจ (ฉบับรองรับอนาคต)")
+        st.header("🤝 ระบบจับมือวางแผน (Guided Trader)")
 
         # 1. หาราคาตลาดปัจจุบัน
         current_val = 0.0
@@ -205,58 +205,66 @@ if ticker_input:
             elif 'last_price' in locals(): current_val = float(last_price)
         except: current_val = 0.0
 
-        # 2. กรอกข้อมูลแบบละเอียดยิบ (รองรับทุกความเป็นไปได้)
-        c1, c2, c3 = st.columns(3)
+        # 2. ข้อมูลต้นทุน (คุณหนึ่งกรอกแค่ 2 ช่องนี้พอ)
+        c1, c2 = st.columns(2)
         with c1:
-            # ต้นทุน: รองรับละเอียดมากเผื่อเหรียญหรือหุ้นปั่น
-            cost = st.number_input("1. ซื้อมาหุ้นละกี่ดอลล์ ($)", value=0.0, step=0.000001, format="%.6f", key="c_vfinal")
+            cost = st.number_input("1. ต้นทุนเฉลี่ย ($)", value=0.0, step=0.0001, format="%.4f", key="c_vfinal")
         with c2:
-            # จำนวนหุ้น: ปรับเป็น 10 ตำแหน่ง รองรับเศษหุ้นทุกรูปแบบในอนาคต
-            shares = st.number_input("2. มีอยู่ในมือทั้งหมดกี่หุ้น", value=0.0, step=1e-10, format="%.10f", key="s_vfinal")
-        with c3:
-            # เป้าหมายกำไร
-            target = st.slider("3. อยากได้กำไรกี่ % ดี?", 5, 50, 10, key="p_vfinal")
+            shares = st.number_input("2. หุ้นที่มี (เศษหุ้น)", value=0.0, step=1e-10, format="%.10f", key="s_vfinal")
 
-        # 3. คำนวณแผนการ
         if cost > 0 and shares > 0:
-            take_profit = cost * (1 + target/100)
-            stop_loss = cost * 0.95 
-            
-            st.info(f"💡 **สรุปแผน:** ถ้าถึง **${take_profit:.6f}** ให้รีบขาย | แต่ถ้าหล่นไปถึง **${stop_loss:.6f}** ให้รีบหนี!")
+            # --- ระบบช่วยเลือกเป้าหมาย (ไม่ต้องเลื่อน Slider เองแล้ว) ---
+            st.write("### 🎯 3. เลือกเป้าหมายที่คุณพอใจ:")
+            plan_choice = st.radio(
+                "เลือกระดับความคาดหวัง (เราคำนวณราคาที่เหมาะสมให้แล้ว):",
+                ["เอาค่าขนม (เน้นกำไรเร็ว 5%)", "หวังผลจริงจัง (มาตรฐาน 10%)", "เน้นรวยยาว (สายอดทน 20%+)"],
+                index=1, horizontal=True
+            )
 
-            # 4. ส่วนเช็คสถานะ
-            price_input = st.number_input("4. ราคาตลาดตอนนี้ ($)", value=current_val if current_val > 0 else 0.0, format="%.4f", key="m_price")
+            # กำหนดค่าตามแผนที่เลือก
+            if "เอาค่าขนม" in plan_choice: target_pct = 5.0
+            elif "หวังผลจริงจัง" in plan_choice: target_pct = 10.0
+            else: target_pct = 20.0
+
+            tp_price = cost * (1 + target_pct/100)
+            sl_price = cost * 0.95 # จุดตัดขาดทุนมาตรฐานที่ 5%
+            initial_investment = cost * shares
+            
+            st.info(f"📍 **ระบบตั้งเป้าให้คุณ:** จะขายที่ราคา **${tp_price:.4f}** (เพื่อกำไร {target_pct}%) | จุดถอยคือ **${sl_price:.4f}**")
+
+            # 3. ตรวจสอบสถานะและสั่งการ
+            price_input = st.number_input("4. ราคาตลาดตอนนี้ ($)", value=current_val if current_val > 0 else 0.0, format="%.4f")
             now_price = price_input if price_input > 0 else current_val
 
             if now_price > 0:
-                st.write("### 📢 สิ่งที่คุณต้องทำตอนนี้:")
+                current_value = now_price * shares
+                profit_loss = current_value - initial_investment
                 
-                if now_price >= take_profit:
-                    total_profit = (now_price - cost) * shares
-                    st.success(f"### 🔥 **รวยแล้ว! กำไรทะลุเป้าไป ${total_profit:,.2f}**")
+                st.write("---")
+                st.write("### 📢 สิ่งที่ต้องทำตอนนี้:")
+
+                if now_price >= tp_price:
+                    st.success(f"### 🎉 **กำไรถึงเป้า {target_pct}% แล้ว! (+${profit_loss:,.2f})**")
+                    st.write("**คำสั่ง: กดขายใน Dime! ตามยอดเงินนี้:**")
                     
                     st.table({
-                        "แผนการ": ["A: ขายหมดเกลี้ยง", "B: ขายครึ่งเดียวเอาทุนคืน"],
-                        "จำนวนหุ้นที่ต้องขาย": [f"{shares:.10f} หุ้น", f"{(shares / 2):.10f} หุ้น"],
-                        "เงินที่จะได้รับจริง ($)": [f"${(now_price * shares):,.2f}", f"${(now_price * (shares / 2)):,.2f}"],
-                        "ผลลัพธ์": ["จบงาน สบายใจ", f"ถือลุ้นต่ออีก {(shares / 2):.10f} หุ้น"]
+                        "ระดับความอุ่นใจ": ["🛡️ ปลอดภัยที่สุด", "⚖️ สายสมดุล (แนะนำ)"],
+                        "กดขายเป็นเงิน ($)": [f"${current_value:,.2f}", f"${initial_investment:,.2f}"],
+                        "เหตุผล": ["เก็บเงินเข้ากระเป๋าหมดเลย", "เอาเงินต้นคืนมาเก็บไว้ หุ้นที่เหลือถือฟรีลุ้นต่อ"]
                     })
                 
-                elif now_price <= stop_loss:
-                    loss = (cost - now_price) * shares
-                    st.error(f"### 🚨 **ต้องยอมแพ้แล้ว! กดขายทิ้งทันที**")
-                    st.write(f"ถ้าขายตอนนี้จะขาดทุนที่ **${loss:,.2f}**")
+                elif now_price <= sl_price:
+                    st.error(f"### 🚨 **ต้องถอยแล้ว! (ขาดทุน ${abs(profit_loss):,.2f})**")
+                    st.write(f"คำสั่ง: กดขายทิ้งทั้งหมดเป็นเงิน **${current_value:,.2f}** ทันที")
                 
                 else:
-                    diff = (now_price - cost) * shares
-                    st.warning(f"### ⏳ **นั่งนิ่งๆ จิบกาแฟรอไปก่อน**")
-                    st.write(f"ตอนนี้สถานะคือ {'กำไร' if diff > 0 else 'ขาดทุน'} อยู่ **${abs(diff):,.2f}**")
+                    st.warning(f"### ⏳ **สถานะ: ยังไม่ใช่จังหวะขาย**")
+                    st.write(f"ราคาตอนนี้ ${now_price:.4f} ยังไม่ถึงจุดที่เราจะขยับ (เป้าคือ ${tp_price:.4f})")
+                    st.write(f"กำไรสะสมตอนนี้: **${profit_loss:,.2f}**")
         else:
-            st.write("👈 กรุณากรอกข้อมูลให้ครบถ้วนเพื่อเริ่มวางแผนครับ")
+            st.write("👈 ใส่ต้นทุนและจำนวนหุ้นจาก Dime! แล้วผมจะบอกแผนให้ครับ")
 
         # --- Footer ---
-        from datetime import datetime, timedelta
-        now_thai = datetime.now() + timedelta(hours=7) 
         st.write("---") 
-        st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (TH) | พัฒนาโดย ZEROREZ")
+        st.caption("พัฒนาโดย ZEROREZ | ระบบจับมือซื้อขายฉบับ Dime! Optimized")
        
