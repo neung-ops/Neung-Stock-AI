@@ -193,4 +193,6 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | ข้อมูลสนับสนุนโดย Yahoo Finance")
+        now_thai = datetime.now() + timedelta(hours=7) 
+        st.write("---")
+        st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (Thailand Time) | Developed by: ZEROREZ | ข้อมูลสนับสนุนโดย Yahoo Finance")
