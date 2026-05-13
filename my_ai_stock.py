@@ -86,11 +86,11 @@ with st.sidebar:
     days_to_predict = st.slider("พยากรณ์ล่วงหน้า (วัน):", 1, 30, 7)
     
     # เพิ่มคำอธิบาย Tooltip สำหรับช่วงเวลา
-    period = st.selectbox(
-        "ข้อมูลย้อนหลัง (Period):", 
+    period = st.sidebar.selectbox(
+        "เลือกช่วงข้อมูลย้อนหลัง:", 
         ["6mo", "1y", "2y", "5y"], 
         index=1,
-        help="• 6mo: สำหรับหุ้นผันผวนสูง | • 1y: มาตรฐานที่แม่นยำที่สุด | • 2y+: ดูแนวต้านระยะยาว"
+        help="• 6mo: เน้นข้อมูลล่าสุด (NVDA/AMD/TECH)\n• 1y: ค่ามาตรฐานที่แนะนำ\n• 2y+: สำหรับวิเคราะห์ภาพกว้าง"
     )
     
     if st.button("Log out"):
