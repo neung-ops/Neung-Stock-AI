@@ -270,7 +270,7 @@ def render_smart_guide():
             "  —  วางเมาส์ที่ปุ่ม **?** เพื่ออ่านคำอธิบาย"
         )
         html = build_strategy_html(rows, highlight)
-        components.html(html, height=235, scrolling=False)
+        components.html(html, height=320, scrolling=False)
 
     else:
         st.warning(
