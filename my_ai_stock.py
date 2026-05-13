@@ -198,4 +198,4 @@ if ticker_input:
         now_thai = datetime.now() + timedelta(hours=7) 
         st.write("---") 
         st.caption("แนะนำ: เช็คสัญญาณหลังตลาดเปิด 30 นาที เพื่อให้ AI ประมวลผลจากราคาที่นิ่งแล้ว")
-        st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (Thailand Time) | พัฒนาโดย ZEROREZ")
+        st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (GMT+7 TH) | พัฒนาโดย ZEROREZ")
