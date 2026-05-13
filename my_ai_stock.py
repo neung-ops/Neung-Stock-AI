@@ -193,38 +193,43 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # --- [FINAL VERSION] แก้ไขเรื่องราคา $0.00 ---
+        # --- [ULTIMATE VERSION] ก๊อปวางก้อนนี้ได้เลยครับ ---
         st.write("---")
         st.header("🧮 เครื่องมือช่วยตัดสินใจ (Full Version)")
         
-        # ดึงราคาปัจจุบัน (ใช้ค่าที่คุณโชว์บนหน้าจอ $448.29)
-        # ผมจะพยายามดึงจากทุกชื่อตัวแปรที่น่าจะเป็นไปได้ในโค้ดของคุณ
+        # 1. พยายามดึงราคาตลาดปัจจุบัน (ดึงสดจากตัวแปรที่คุณมี)
         current_val = 0.0
-        for price_var in ['last_price', 'current_price', 'close_price', 'price']:
-            if price_var in locals():
-                current_val = float(locals()[price_var])
-                break
+        try:
+            # ลองหาจากตัวแปรที่น่าจะเป็นไปได้ทั้งหมด
+            for var_name in ['last_price', 'current_price', 'close_price', 'price', 'last_close']:
+                if var_name in locals():
+                    current_val = float(locals()[var_name])
+                    break
+        except:
+            current_val = 0.0
 
+        # 2. ส่วนรับข้อมูลจากคุณหนึ่ง
         col1, col2 = st.columns(2)
         with col1:
-            # ใส่ต้นทุน (ค่าเริ่มต้นเป็น 0 เพื่อให้คุณกรอกเองได้แม่นๆ)
-            my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=0.0, step=0.01)
+            # ใส่ต้นทุน (ค่าเริ่มต้นเป็นราคาตลาดปัจจุบัน ถ้าหาไม่เจอจะเป็น 0.0)
+            my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=current_val if current_val > 0 else 0.0, step=0.01)
             
         with col2:
             profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10)
 
-        # คำนวณแผนการ
+        # 3. คำนวณแผนการ
         if my_cost > 0:
             tp_price = my_cost * (1 + profit_target_pct/100)
             sl_price = my_cost * 0.95 
 
             st.subheader("📍 แผนการซื้อขายของคุณ")
             c1, c2 = st.columns(2)
+            # ใช้ Metric โชว์ราคาเป้าหมายตัวใหญ่ๆ
             c1.metric("เป้าหมายขายกำไร (TP)", f"${tp_price:.2f}", f"+{profit_target_pct}%")
             c2.metric("จุดตัดขาดทุน (SL)", f"${sl_price:.2f}", "-5%")
 
             st.write("---")
-            # เช็กสถานะและแสดงแถบสี
+            # 4. แสดงสถานะตามราคาตลาดจริง
             if current_val > 0:
                 if current_val >= tp_price:
                     st.success(f"🔥 **สถานะ: ถึงเป้าหมายกำไรแล้ว!** (ราคาตลาดตอนนี้ ${current_val:.2f})")
@@ -233,12 +238,17 @@ if ticker_input:
                 else:
                     st.info(f"⏳ **สถานะ: ถือต่อไป (Hold)** - ราคาตลาดปัจจุบัน ${current_val:.2f} ยังอยู่ในแผน")
             else:
-                # กรณีที่ระบบยังหาราคาตลาดไม่เจอ (แสดงเป็น $0.00)
-                st.warning(f"⚠️ ระบบกำลังดึงราคาตลาด... (กรุณารอครู่หนึ่ง หรือเช็กราคา ${current_val:.2f} เทียบกับเป้าหมายด้านบน)")
+                # ถ้าดึงราคาอัตโนมัติไม่ได้จริงๆ จะมีช่องให้ใส่ราคาตลาดเองเพื่อเช็คสถานะ
+                st.warning("⚠️ ไม่พบข้อมูลราคาตลาดอัตโนมัติ")
+                manual_market = st.number_input("ลองใส่ราคาตลาดปัจจุบันเพื่อเช็คสถานะ ($)", value=0.0)
+                if manual_market > 0:
+                    if manual_market >= tp_price: st.success("🔥 ถึงจุดขายกำไรแล้ว!")
+                    elif manual_market <= sl_price: st.error("🚨 ถึงจุดต้องตัดขาดทุน!")
+                    else: st.info("⏳ สถานะคือให้ถือต่อไปครับ")
         else:
             st.warning("👈 กรุณาใส่ 'ต้นทุนของคุณ' (ราคาที่ซื้อมาจาก Dime!) เพื่อเริ่มคำนวณครับ")
 
-        # --- ส่วนท้าย ---
+        # --- ส่วนท้ายแอป ---
         now_thai = datetime.now() + timedelta(hours=7) 
         st.write("---") 
         st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (TH Time) | พัฒนาโดย ZEROREZ")
