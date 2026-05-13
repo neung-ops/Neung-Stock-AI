@@ -5,6 +5,7 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+from smart_guide import render_smart_guide
 
 # --- 1. ระบบรักษาความปลอดภัย (Security) ---
 def check_password():
@@ -193,92 +194,4 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         st.write("---")
-        # --- [STABLE & SMART VERSION] แก้บั๊กหน้าหาย + แสดงผลแม่นยำ ---
-        st.write("---")
-        st.header("🧠 ระบบวิเคราะห์และช่วยตัดสินใจ (Smart Guide)")
-
-        # 1. ตั้งค่าพื้นฐานป้องกัน Error (Pre-define)
-        initial_investment = 0.0
-        current_price = 0.0
-        tp_price = 0.0
-        sl_price = 0.0
-        
-        # 2. ส่วนกรอกข้อมูลหลัก
-        c1, c2 = st.columns(2)
-        with c1:
-            cost = st.number_input("1. ต้นทุนเฉลี่ยต่อหุ้น ($)", value=0.0, step=0.0001, format="%.4f", key="cost_input")
-        with c2:
-            shares = st.number_input("2. หุ้นที่มี (เศษหุ้น)", value=0.0, step=1e-10, format="%.10f", key="shares_input")
-
-        # 3. ส่วนเลือกแผน (ต้องคำนวณเป้าหมายก่อนใช้ในตาราง)
-        st.write("### 🎯 3. เลือกเป้าหมายที่คุณพอใจ:")
-        plan_choice = st.radio(
-            "เลือกระดับความคาดหวัง:",
-            ["เอาค่าขนม (5%)", "เก็บกำไรพอดีคำ (10%)", "เก็บกำไรคำโต (20%)"],
-            index=1, horizontal=True, key="plan_radio"
-        )
-
-        # Logic กำหนดค่า %
-        if "5%" in plan_choice: target_pct = 5.0
-        elif "10%" in plan_choice: target_pct = 10.0
-        else: target_pct = 20.0
-
-        # คำนวณเป้าหมายเบื้องต้น
-        if cost > 0:
-            tp_price = cost * (1 + target_pct/100)
-            sl_price = cost * 0.95
-            st.info(f"📍 **เป้าหมายปัจจุบัน:** ขายที่ ${tp_price:.4f} | ตัดขาดทุนที่ ${sl_price:.4f}")
-
-        # 4. ส่วนราคาตลาด
-        market_input = st.number_input("4. ราคาตลาดตอนนี้จาก Dime! ($)", value=0.0, format="%.4f", key="market_input")
-        
-        # ดึงราคาจาก API มาสำรอง
-        auto_price = 0.0
-        try:
-            if 'hist' in locals(): auto_price = float(hist['Close'].iloc[-1])
-            elif 'df' in locals(): auto_price = float(df['Close'].iloc[-1])
-        except: pass
-        
-        current_price = market_input if market_input > 0 else auto_price
-
-        # 5. แสดงตารางวิเคราะห์ (จะโชว์ก็ต่อเมื่อมีข้อมูลต้นทุนและหุ้นครบ)
-        if cost > 0 and shares > 0 and current_price > 0:
-            initial_investment = cost * shares
-            current_value = current_price * shares
-            profit_now = current_value - initial_investment
-            
-            target_value = tp_price * shares
-            target_profit = target_value - initial_investment
-            
-            st.write("---")
-            st.write(f"📊 **ตารางเปรียบเทียบกลยุทธ์ (อิงเป้า {target_pct}%)**")
-
-            decision_table = {
-                "กลยุทธ์": ["💰 ขายตอนนี้เลย", "🎯 ขายตามเป้าที่ตั้ง", "🛡️ ขายคืนทุน (ถือฟรี)"],
-                "ยอดเงินที่ต้องกรอกใน Dime! ($)": [
-                    f"${current_value:,.2f}", 
-                    f"${target_value:,.2f}", 
-                    f"${initial_investment:,.2f}"
-                ],
-                "กำไรที่จะได้รับจริง ($)": [
-                    f"${profit_now:,.2f}", 
-                    f"${target_profit:,.2f}", 
-                    "ได้ทุนคืน (หุ้นที่เหลือคือโบนัส)"
-                ],
-                "มุมมอง AI": []
-            }
-
-            # เติมคำแนะนำตามราคาจริง
-            if current_price >= tp_price:
-                st.success(f"🔥 **กำไรทะลุเป้า!** ราคาปัจจุบัน ${current_price:.4f} สูงกว่าเป้าหมายแล้ว")
-                decision_table["มุมมอง AI"] = ["กำไรเน้นๆ จบงาน", "ขายตามระเบียบวินัย", "แนะให้ทำ! คืนทุนแล้วถือลุ้นต่อ"]
-            elif current_price < cost:
-                st.error(f"🚨 **ติดลบอยู่!** ห่างจากจุดคัท ${ (current_price - sl_price):.4f}")
-                decision_table["มุมมอง AI"] = ["เจ็บแต่จบ", "ต้องรออีกนาน", "ยังทำไม่ได้"]
-            else:
-                st.warning(f"⏳ **กำลังเดินทาง...** อีก ${ (tp_price - current_price):.4f} ถึงเป้าหมาย")
-                decision_table["มุมมอง AI"] = ["ใจร้อนไปนิด", "ถือตามแผนต่อไป", "ทางเลือกที่ดีถ้าอยากลดความเสี่ยง"]
-
-            st.table(decision_table)
-        else:
-            st.warning("👈 กรุณากรอก 'ต้นทุน', 'จำนวนหุ้น' และ 'ราคาตลาด' เพื่อให้ระบบแสดงตารางวิเคราะห์ครับ")
+        render_smart_guide()
