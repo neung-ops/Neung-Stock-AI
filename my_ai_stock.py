@@ -208,17 +208,31 @@ if ticker_input:
             # เลือกเป้าหมายกำไรที่ต้องการ
             profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10)
 
-        current_price = last_price # เปลี่ยน last_price เป็นชื่อตัวแปรราคาที่คุณมีในโค้ด
+        # 1. รับค่าจากผู้ใช้ก่อน (Input)
+        st.write("---")
+        st.header("🧮 เครื่องมือช่วยตัดสินใจ (Beta)")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            # ใช้ราคาตลาดปัจจุบันเป็นค่าเริ่มต้น ถ้าชื่อตัวแปรคุณคือ last_price ให้เปลี่ยนเป็น last_price ครับ
+            my_cost = st.number_input("ใส่ต้นทุนของคุณ ($)", value=float(last_price))
+            
+        with col2:
+            profit_target_pct = st.slider("เป้าหมายกำไรที่ต้องการ (%)", 5, 50, 10)
 
-        # คำนวณตัวเลขเป้าหมายและจุดตัดขาดทุน
+        # 2. ตั้งชื่อตัวแปรราคาปัจจุบันให้ระบบจำได้
+        current_price = last_price 
+
+        # 3. คำนวณ (ทำหลังจากได้ค่า my_cost และ profit_target_pct มาแล้ว)
         tp_price = my_cost * (1 + profit_target_pct/100)
-        sl_price = my_cost * 0.95 # ตั้งค่าตัดขาดทุนอัตโนมัติที่ 5%
+        sl_price = my_cost * 0.95 # ตัดขาดทุนที่ 5%
 
+        # 4. แสดงผล
         st.subheader(f"📍 แผนการสำหรับหุ้น {ticker}")
         st.write(f"✅ **ควรขายทำกำไรที่ราคา:** `${tp_price:.2f}` (เมื่อกำไร {profit_target_pct}%)")
         st.write(f"⚠️ **ควรตัดขาดทุน (Stop Loss) ที่:** `${sl_price:.2f}` (เพื่อรักษาเงินต้น)")
 
-        # แสดงข้อความแนะนำตามสถานการณ์จริง
+        # 5. แสดงข้อความเตือน
         if current_price >= tp_price:
             st.success("🎉 ราคาถึงเป้าหมายแล้ว! พิจารณาแบ่งขายทำกำไรออกมาบางส่วนครับ")
         elif current_price <= sl_price:
