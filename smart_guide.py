@@ -31,7 +31,7 @@ def build_strategy_html(rows: list, highlight_idx: int, key: str) -> str:
             <div class="cell-value">{r['price']}</div>
           </div>
           <div class="col">
-            <div class="cell-label">เงินเข้ากระเป๋า</div>
+            <div class="cell-label">USD ที่ต้องขาย</div>
             <div class="cell-value">{r['value']}</div>
             {note_html}
           </div>
