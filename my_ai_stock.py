@@ -194,3 +194,8 @@ if ticker_input:
             st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
 
         render_smart_guide()
+        # --- ส่วนท้ายแอป ---
+        now_thai = datetime.now() + timedelta(hours=7) 
+        st.write("---") 
+        st.caption("แนะนำ: เช็คสัญญาณหลังตลาดเปิด 30 นาที (ประมาณ 21:00 น. หรือ 22:00 น. ตามฤดูกาล) เพื่อให้ AI ประมวลผลจากทิศทางราคาที่นิ่งแล้ว")
+        st.caption(f"Last updated: {now_thai.strftime('%Y-%m-%d %H:%M:%S')} (GMT+7 TH) | พัฒนาโดย ZEROREZ")
