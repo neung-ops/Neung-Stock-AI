@@ -2,11 +2,10 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 TIPS = [
-    "ขายหุ้นออกทันทีตอนนี้เลย ได้เงินจริงแน่นอน ไม่ต้องลุ้นอะไรอีก แต่ถ้าราคายังขึ้นต่อก็จะพลาดกำไรส่วนนั้นไป",
-    "ยังไม่ขาย รอให้ราคาขึ้นถึงเป้าที่ตั้งไว้ก่อน ตัวเลขที่เห็นคือ 'ถ้าถึงเป้าจะได้เท่านี้' ยังไม่ได้เงินจริงจนกว่าจะขาย",
-    "ขายหุ้นออกมาแค่พอได้เงินทุนคืน หุ้นที่เหลืออยู่ในพอร์ตถือว่าได้มาฟรี จะขึ้นหรือลงก็ไม่เจ็บตัว",
+    "ขายหุ้นออกตอนนี้เพื่อปิดดีลรับเงินก้อนทั้งหมด (ทั้งทุนและกำไร) เข้าบัญชีทันที",
+    "เป็นการวางแผนล่วงหน้า ระบบจะคำนวณว่าถ้าราคาไปถึงเป้าที่คุณเลือก คุณจะได้เงินรวมเท่าไหร่",
+    "ดึงเฉพาะเงินส่วนเกิน (กำไร) ออกมาใช้จ่าย โดยที่ 'เงินต้น' ยังอยู่ครบเท่าเดิมในพอร์ต",
 ]
-
 
 def build_strategy_html(rows: list, highlight_idx: int, key: str) -> str:
     rows_html = ""
@@ -27,16 +26,16 @@ def build_strategy_html(rows: list, highlight_idx: int, key: str) -> str:
             <span class="q-icon">?<div class="tooltip">{tip}</div></span>
           </div>
           <div class="col">
-            <div class="cell-label">ขายที่ราคา</div>
+            <div class="cell-label">ราคาที่อ้างอิง</div>
             <div class="cell-value">{r['price']}</div>
           </div>
           <div class="col">
-            <div class="cell-label">USD ที่ต้องขาย</div>
+            <div class="cell-label">เงินที่ดึงออกมาได้</div>
             <div class="cell-value">{r['value']}</div>
             {note_html}
           </div>
           <div class="col">
-            <div class="cell-label">กำไรที่ได้เพิ่ม</div>
+            <div class="cell-label">ผลตอบแทน</div>
             <div class="cell-value" style="color:{p_color}">{r['profit']}</div>
             <div class="cell-sub">{r['profit_pct']}</div>
           </div>
@@ -69,24 +68,23 @@ def build_strategy_html(rows: list, highlight_idx: int, key: str) -> str:
     </style>
     <div class="wrapper">
       <div class="header">
-        <div>ทางเลือก</div><div>ขายที่ราคา</div>
-        <div>USD ที่ต้องขาย</div><div>กำไรที่ได้เพิ่ม</div><div>ควรทำมั้ย?</div>
+        <div>แผนการขาย</div><div>ราคาอ้างอิง</div>
+        <div>ยอดเงินที่จะได้รับ</div><div>ผลตอบแทน</div><div>คำแนะนำ</div>
       </div>
       {rows_html}
     </div>
     """
 
-
 def render_smart_guide(market_price: float = 0.0):
     st.write("---")
-    st.header("🧠 ระบบช่วยตัดสินใจขาย")
+    st.header("🧠 ระบบช่วยตัดสินใจ (Smart Guide)")
 
     cost = shares = tp_price = sl_price = 0.0
 
     c1, c2 = st.columns(2)
     with c1:
         cost = st.number_input(
-            "ต้นทุนต่อหุ้น ($) — ราคาที่ซื้อมาเฉลี่ย",
+            "ต้นทุนต่อหุ้น ($)",
             value=0.0, step=0.0001, format="%.4f", key="sg_cost"
         )
     with c2:
@@ -95,131 +93,98 @@ def render_smart_guide(market_price: float = 0.0):
             value=0.0, step=1e-10, format="%.10f", key="sg_shares"
         )
 
-    # ถ้ามี market_price ส่งมาจากส่วนบน ไม่ต้องกรอกซ้ำ
     if market_price > 0:
         current_price = market_price
-        st.info(f"📡 ราคาตลาดปัจจุบัน: **${current_price:.4f}** (ดึงจากระบบอัตโนมัติ)")
+        st.info(f"📡 ราคาตลาดปัจจุบัน: **${current_price:.4f}**")
     else:
         current_price = st.number_input(
             "ราคาตลาดตอนนี้ ($)",
             value=0.0, format="%.4f", key="sg_market"
         )
 
-    st.write("### อยากได้กำไรแค่ไหน?")
+    st.write("### 🎯 ตั้งเป้าหมายกำไร")
     plan_choice = st.radio(
-        "เลือกเป้าหมาย:",
-        ["นิดหน่อยก็พอ (+5%)", "พอดีๆ (+10%)", "รอให้ได้เยอะ (+20%)"],
+        "เลือกเป้าหมายการรันเทรน:",
+        ["เก็บค่าขนม (+5%)", "พอดีคำ (+10%)", "คำโต (+20%)"],
         index=1, horizontal=True, key="sg_plan"
     )
     target_pct = 5.0 if "5%" in plan_choice else (10.0 if "10%" in plan_choice else 20.0)
-
-    if cost > 0:
-        tp_price = cost * (1 + target_pct / 100)
-        sl_price = cost * 0.95
 
     if cost > 0 and shares > 0 and current_price > 0:
         invested      = cost * shares
         current_value = current_price * shares
         pnl           = current_value - invested
         pnl_pct       = (pnl / invested) * 100
+        
+        tp_price      = cost * (1 + target_pct / 100)
         target_value  = tp_price * shares
         target_profit = target_value - invested
+        sl_price      = cost * 0.95
 
-        # Summary
+        # --- คัดกรองข้อมูลสำหรับ "ช่องพิเศษ: ถอนกำไร" ---
+        harvest_amount = pnl if pnl > 0 else 0.0
+        harvest_badge = "ถอนกำไรได้ ✅" if pnl > 0 else "ยังไม่มีกำไร"
+        harvest_color = "green" if pnl > 0 else "gray"
+
         st.write("---")
         m1, m2, m3 = st.columns(3)
-        m1.metric("💼 ลงทุนไปทั้งหมด", f"${invested:,.2f}")
-        m2.metric("📈 ถ้าขายตอนนี้ได้",  f"${current_value:,.2f}")
-        m3.metric("💰 กำไร/ขาดทุน",      f"${pnl:,.2f}", delta=f"{pnl_pct:+.1f}%")
+        m1.metric("💼 เงินต้นทั้งหมด", f"${invested:,.2f}")
+        m2.metric("📈 มูลค่าพอร์ตปัจจุบัน", f"${current_value:,.2f}")
+        m3.metric("💰 กำไรสะสม", f"${pnl:,.2f}", delta=f"{pnl_pct:+.1f}%")
 
-        # สถานะ
-        st.write("---")
-        if pnl_pct >= target_pct * 2:
-            st.success(f"🔥 กำไรเกินเป้ามากแล้ว ({pnl_pct:.1f}%) ระวังราคาย้อนกลับ ควรพิจารณาล็อคกำไรได้เลย")
-        elif current_price >= tp_price:
-            st.success(f"✅ ถึงเป้าแล้ว! ราคาตอนนี้ ${current_price:.4f} ขายได้กำไร {pnl_pct:.1f}%")
-        elif current_price < sl_price:
-            st.error(f"🚨 ราคาต่ำกว่าจุดตัดขาดทุน (${sl_price:.4f}) ถือต่ออาจเสียมากกว่านี้")
-        elif current_price < cost:
-            st.warning(f"⚠️ ตอนนี้ขาดทุนอยู่ รอให้ราคาขึ้นอีก ${cost - current_price:.4f}/หุ้น ถึงจะเท่าทุน")
-        else:
-            st.info(f"⏳ กำไรอยู่แต่ยังไม่ถึงเป้า อีก ${tp_price - current_price:.4f}/หุ้น ถึงจะครบ {target_pct:.0f}%")
-
-        # ชื่อแถว 2 เปลี่ยนตามสถานการณ์จริง
+        # สรุปสถานะแบบเร็ว
         if current_price >= tp_price:
-            title_row2 = f"✅ ถึงเป้าแล้ว ขายได้เลย"
-            note_row2  = ""
-        else:
-            title_row2 = f"⏳ รอให้ราคาขึ้นถึง ${tp_price:.4f}"
-            note_row2  = "* ตัวเลขนี้จะได้จริงเมื่อราคาถึงเป้า"
-
-        # badge + highlight ตามสถานการณ์
-        if pnl_pct >= target_pct * 2:
-            badges       = ["ล็อคกำไรได้เลย ✅", "เกินเป้าแล้ว",    "ทำได้ ✅"]
-            badge_colors = ["green",              "amber",            "green"]
-            highlight    = 0
-        elif current_price >= tp_price:
-            badges       = ["ขายได้เลย ✅",       "ถึงแล้ว ✅",       "ทำได้ ✅"]
-            badge_colors = ["green",              "green",            "green"]
-            highlight    = 0
+            st.success(f"🔥 ถึงเป้าหมาย {target_pct}% แล้ว! พิจารณาขายเพื่อทำกำไร")
         elif current_price < sl_price:
-            badges       = ["แนะนำให้ขาย",        "เสี่ยงสูง",        "ทำไม่ได้ตอนนี้"]
-            badge_colors = ["amber",              "gray",             "gray"]
-            highlight    = 0
-        elif current_price < cost:
-            badges       = ["ขาดทุนถ้าขาย",       "รออีกนาน",         "ทำไม่ได้ตอนนี้"]
-            badge_colors = ["gray",               "gray",             "gray"]
-            highlight    = -1
+            st.error(f"🚨 ราคาหลุดจุดคัทตัดขาดทุน (${sl_price:.4f})")
         else:
-            badges       = ["ได้กำไรนิดหน่อย",    "แนะนำ รอต่อ ✅",   "ลดความเสี่ยง"]
-            badge_colors = ["amber",              "green",            "green"]
-            highlight    = 1
+            st.info(f"⏳ อีก ${(tp_price - current_price):.4f} จะถึงเป้าหมายที่ตั้งไว้")
 
+        # จัดเตรียมข้อมูลตาราง
         rows = [
             {
-                "title":       "💰 ขายเลย เอาเงินออกมา",
-                "price":       f"${current_price:.4f}",
-                "value":       f"${current_value:,.2f}",
-                "profit":      f"${pnl:+,.2f}",
-                "profit_pct":  f"{pnl_pct:+.1f}%",
-                "profit_pos":  pnl >= 0,
-                "badge":       badges[0],
-                "badge_color": badge_colors[0],
-                "note":        "",
+                "title": "💰 ปิดดีลขายทั้งหมด",
+                "price": f"${current_price:.4f}",
+                "value": f"${current_value:,.2f}",
+                "profit": f"${pnl:+,.2f}",
+                "profit_pct": f"{pnl_pct:+.1f}%",
+                "profit_pos": pnl >= 0,
+                "badge": "Cash Out",
+                "badge_color": "green" if pnl >= 0 else "gray",
+                "note": "ขายคืนทั้งหมดทั้งต้นและกำไร",
             },
             {
-                "title":       title_row2,
-                "price":       f"${tp_price:.4f}",
-                "value":       f"${target_value:,.2f}",
-                "profit":      f"${target_profit:+,.2f}",
-                "profit_pct":  f"{target_pct:+.1f}%",
-                "profit_pos":  True,
-                "badge":       badges[1],
-                "badge_color": badge_colors[1],
-                "note":        note_row2,
+                "title": f"🎯 ถือรอเป้าหมาย {target_pct}%",
+                "price": f"${tp_price:.4f}",
+                "value": f"${target_value:,.2f}",
+                "profit": f"${target_profit:+,.2f}",
+                "profit_pct": f"{target_pct:+.1f}%",
+                "profit_pos": True,
+                "badge": "Waiting",
+                "badge_color": "amber",
+                "note": "เป้าหมายกำไรที่คุณตั้งไว้",
             },
             {
-                "title":       "🛡️ ขายแค่คืนทุน เหลือไว้ลุ้นฟรี",
-                "price":       f"${cost:.4f}",
-                "value":       f"${invested:,.2f}",
-                "profit":      "ได้ทุนคืน",
-                "profit_pct":  "+0.0%",
-                "profit_pos":  True,
-                "badge":       badges[2],
-                "badge_color": badge_colors[2],
-                "note":        "",
+                "title": "🍃 เก็บเกี่ยวเฉพาะกำไร",
+                "price": f"${current_price:.4f}",
+                "value": f"${harvest_amount:,.2f}",
+                "profit": "ดึงกำไรออกมาใช้",
+                "profit_pct": f"{pnl_pct:+.1f}%",
+                "profit_pos": pnl > 0,
+                "badge": harvest_badge,
+                "badge_color": harvest_color,
+                "note": "ดึงเงินกำไรออก แต่รักษาเงินต้นไว้",
             },
         ]
 
-        st.write("#### เปรียบเทียบทางเลือก")
-        html_key = f"{cost}_{shares}_{current_price}_{target_pct}"
-        html = build_strategy_html(rows, highlight, html_key)
-        components.html(html, height=320, scrolling=False)
+        # แสดงผลตาราง HTML
+        html_key = f"key_{cost}_{shares}_{current_price}_{target_pct}"
+        html = build_strategy_html(rows, highlight_idx=-1, key=html_key)
+        components.html(html, height=350, scrolling=False)
 
     else:
-        st.warning("👈 กรอกตัวเลขด้านบนให้ครบก่อนนะครับ ระบบถึงจะแสดงผลได้")
-
+        st.warning("👈 กรอกต้นทุนและจำนวนหุ้นเพื่อเริ่มการวิเคราะห์")
 
 if __name__ == "__main__":
-    st.set_page_config(page_title="Smart Guide", page_icon="🧠", layout="centered")
+    st.set_page_config(page_title="Smart Guide", layout="centered")
     render_smart_guide()
