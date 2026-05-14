@@ -1,225 +1,196 @@
 import streamlit as st
-import streamlit.components.v1 as components
+import yfinance as yf
+import pandas as pd
+import numpy as np
+from sklearn.linear_model import LinearRegression
+import plotly.graph_objects as go
+from datetime import datetime, timedelta
+from smart_guide import render_smart_guide
 
-TIPS = [
-    "ขายหุ้นออกทันทีตอนนี้เลย ได้เงินจริงแน่นอน ไม่ต้องลุ้นอะไรอีก แต่ถ้าราคายังขึ้นต่อก็จะพลาดกำไรส่วนนั้นไป",
-    "ยังไม่ขาย รอให้ราคาขึ้นถึงเป้าที่ตั้งไว้ก่อน ตัวเลขที่เห็นคือ 'ถ้าถึงเป้าจะได้เท่านี้' ยังไม่ได้เงินจริงจนกว่าจะขาย",
-    "ขายหุ้นออกมาแค่พอได้เงินทุนคืน หุ้นที่เหลืออยู่ในพอร์ตถือว่าได้มาฟรี จะขึ้นหรือลงก็ไม่เจ็บตัว",
-]
+# --- 1. ระบบรักษาความปลอดภัย (Security) ---
+def check_password():
+    if "password_correct" not in st.session_state:
+        st.session_state["password_correct"] = False
+    if not st.session_state["password_correct"]:
+        st.title("🔒 AI Stock Analyzer Access")
+        pwd = st.text_input("กรุณาใส่รหัสผ่านเพื่อเข้าใช้งาน:", type="password")
+        if st.button("Login"):
+            if pwd == "zerorezstock": # รหัสผ่านที่คุณกำหนด
+                st.session_state["password_correct"] = True
+                st.rerun()
+            else:
+                st.error("❌ รหัสผ่านไม่ถูกต้อง")
+        return False
+    return True
 
+if not check_password():
+    st.stop()
 
-def build_strategy_html(rows: list, highlight_idx: int, key: str) -> str:
-    rows_html = ""
-    for i, r in enumerate(rows):
-        tip     = TIPS[i]
-        is_hi   = i == highlight_idx
-        border  = "2px solid #1fa66b" if is_hi else "1px solid #e0e0e0"
-        bg      = "#f0fdf6" if is_hi else "#ffffff"
-        bc_bg   = {"green": "#d1fae5", "amber": "#fef3c7", "gray": "#f3f4f6"}[r["badge_color"]]
-        bc_txt  = {"green": "#065f46", "amber": "#92400e", "gray": "#374151"}[r["badge_color"]]
-        p_color = "#1fa66b" if r["profit_pos"] else "#dc2626"
-        note_html = f'<div class="cell-note">{r["note"]}</div>' if r.get("note") else ""
+# --- 2. ตั้งค่าหน้าจอและคู่มือฉบับทางการ (App Config & Professional Manual) ---
+st.set_page_config(page_title="AI Stock Analyzer Pro", layout="wide")
 
-        rows_html += f"""
-        <div class="card" style="border:{border};background:{bg};">
-          <div class="col-title">
-            <span class="title-text">{r['title']}</span>
-            <span class="q-icon">?<div class="tooltip">{tip}</div></span>
-          </div>
-          <div class="col">
-            <div class="cell-label">ขายที่ราคา</div>
-            <div class="cell-value">{r['price']}</div>
-          </div>
-          <div class="col">
-            <div class="cell-label">USD ที่ต้องขาย</div>
-            <div class="cell-value">{r['value']}</div>
-            {note_html}
-          </div>
-          <div class="col">
-            <div class="cell-label">กำไรที่ได้เพิ่ม</div>
-            <div class="cell-value" style="color:{p_color}">{r['profit']}</div>
-            <div class="cell-sub">{r['profit_pct']}</div>
-          </div>
-          <div class="col-badge">
-            <span class="badge" style="background:{bc_bg};color:{bc_txt}">{r['badge']}</span>
-          </div>
-        </div>
-        """
+with st.sidebar:
+    st.header("📖 Help Center")
+    with st.popover("📚 คู่มือการใช้งาน"):
+        st.markdown("""
+        ### 🛠 วิธีการใช้งานเบื้องต้น
+        1. **การเลือกสินทรัพย์:** 
+            * เลือกจาก **'รายการโปรด'** สำหรับหุ้นหลักที่ระบบติดตามอยู่ (NVDA, AMD, Gold ฯลฯ)
+            * หรือเลือก **'พิมพ์ชื่อเอง'** เพื่อค้นหา Ticker จาก Yahoo Finance ทั่วโลก
+        2. **การปรับช่วงข้อมูล:**
+            * **พยากรณ์ล่วงหน้า:** ปรับจำนวนวันที่ต้องการให้ AI ทำนายผล (แนะนำ 7-14 วัน)
+            * **ข้อมูลย้อนหลัง:** เลือกช่วงเวลาเพื่อให้ AI เรียนรู้พฤติกรรมราคา (เริ่มต้นที่ 1 ปี)
+        
+        ### 🖱️ เทคนิคการควบคุมกราฟ
+        * **การซูม (Zoom):** ใช้ลูกกลิ้งเมาส์ (Scroll Wheel) เพื่อขยายดูรายละเอียดเฉพาะจุด
+        * **การเลื่อน (Pan):** คลิกซ้ายค้างที่หน้ากราฟแล้วลากเพื่อดูข้อมูลย้อนหลัง
+        * **การรีเซ็ต (Reset View):** **ดับเบิ้ลคลิก (Double Click)** บนพื้นที่ว่างของกราฟ เพื่อกลับสู่มุมมองปกติ
+        
+        ### 🎯 กลยุทธ์การลงทุน
+        * **สายชิลล์ (Conservative):** เหมาะสำหรับการถือครองระยะยาว ระบบจะเน้นสัญญาณที่ชัดเจนเพื่อลดความผันผวน
+        * **สายลุย (Aggressive):** เหมาะสำหรับการเล่นรอบระยะสั้น ระบบจะไวต่อการเปลี่ยนแปลงของราคาเป็นพิเศษ
+        """)
+        
+        st.info("""
+        **🧭 ข้อแนะนำในการใช้งาน:**
+        โปรดใช้แอปพลิเคชันนี้เปรียบเสมือน **'เข็มทิศนำทาง'** เพื่อช่วยคัดกรองสัญญาณทางเทคนิคและลดการใช้อารมณ์ในการตัดสินใจ โดยควรตรวจสอบราคา Real-time จากแอปพลิเคชันหลักและติดตามข่าวสารสำคัญควบคู่ไปด้วยก่อนการลงทุนเสมอ
+        """)
 
-    return f"""
-    <style>
-      *{{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin:0;padding:0}}
-      body{{background:transparent}}
-      .wrapper{{padding:2px 0 8px}}
-      .header{{display:grid;grid-template-columns:2.2fr 1fr 1.1fr 1.1fr 0.85fr;gap:8px;padding:0 14px 8px;font-size:11px;color:#999;font-weight:600;letter-spacing:.05em;text-transform:uppercase}}
-      .card{{display:grid;grid-template-columns:2.2fr 1fr 1.1fr 1.1fr 0.85fr;gap:8px;align-items:center;border-radius:10px;padding:13px 14px;margin-bottom:8px;transition:box-shadow .15s}}
-      .card:hover{{box-shadow:0 3px 14px rgba(0,0,0,.07)}}
-      .col-title{{display:flex;align-items:center;gap:7px;position:relative}}
-      .title-text{{font-size:13.5px;font-weight:500;color:#111}}
-      .q-icon{{position:relative;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#e9eaec;color:#555;font-size:11px;font-weight:700;cursor:default;flex-shrink:0;user-select:none}}
-      .tooltip{{display:none;position:absolute;top:calc(100% + 7px);left:0;background:#1c1c1e;color:#f0f0f0;font-size:13px;line-height:1.55;padding:10px 13px;border-radius:9px;width:270px;z-index:9999;pointer-events:none;white-space:normal;box-shadow:0 4px 16px rgba(0,0,0,.25)}}
-      .q-icon:hover .tooltip{{display:block}}
-      .col{{display:flex;flex-direction:column;gap:2px}}
-      .cell-label{{font-size:11px;color:#aaa}}
-      .cell-value{{font-size:14px;font-weight:500;color:#111}}
-      .cell-sub{{font-size:12px;color:#888}}
-      .cell-note{{font-size:11px;color:#f59e0b;margin-top:2px}}
-      .col-badge{{display:flex;align-items:center}}
-      .badge{{font-size:11.5px;padding:4px 11px;border-radius:20px;font-weight:500;white-space:nowrap}}
-    </style>
-    <div class="wrapper">
-      <div class="header">
-        <div>ทางเลือก</div><div>ขายที่ราคา</div>
-        <div>USD ที่ต้องขาย</div><div>กำไรที่ได้เพิ่ม</div><div>ควรทำมั้ย?</div>
-      </div>
-      {rows_html}
-    </div>
-    """
-
-
-def render_smart_guide(market_price: float = 0.0):
+# --- 3. เมนูเลือกกลยุทธ์และหุ้น (Strategy & Selection) ---
+with st.sidebar:
     st.write("---")
-    st.header("🧠 ระบบช่วยตัดสินใจขาย")
-
-    cost = shares = tp_price = sl_price = 0.0
-
-    c1, c2 = st.columns(2)
-    with c1:
-        cost = st.number_input(
-            "ต้นทุนต่อหุ้น ($) — ราคาที่ซื้อมาเฉลี่ย",
-            value=0.0, step=0.0001, format="%.4f", key="sg_cost"
-        )
-    with c2:
-        shares = st.number_input(
-            "จำนวนหุ้นที่ถืออยู่",
-            value=0.0, step=1e-10, format="%.10f", key="sg_shares"
-        )
-
-    # ถ้ามี market_price ส่งมาจากส่วนบน ไม่ต้องกรอกซ้ำ
-    if market_price > 0:
-        current_price = market_price
-        st.info(f"📡 ราคาตลาดปัจจุบัน: **${current_price:.4f}** (ดึงจากระบบอัตโนมัติ)")
-    else:
-        current_price = st.number_input(
-            "ราคาตลาดตอนนี้ ($)",
-            value=0.0, format="%.4f", key="sg_market"
-        )
-
-    st.write("### อยากได้กำไรแค่ไหน?")
-    plan_choice = st.radio(
-        "เลือกเป้าหมาย:",
-        ["นิดหน่อยก็พอ (+5%)", "พอดีๆ (+10%)", "รอให้ได้เยอะ (+20%)"],
-        index=1, horizontal=True, key="sg_plan"
+    st.header("🎯 กลยุทธ์การลงทุน")
+    strategy = st.radio(
+        "เลือกสไตล์การวิเคราะห์:",
+        ["สายชิลล์ (ถือยาว)", "สายลุย (ทำรอบ)"],
+        help="สายชิลล์: ซื้อเมื่อมั่นใจ (+5%), ขายเมื่อเริ่มเสี่ยง (-3%) | สายลุย: เข้าออกไว (+2%/-2%)"
     )
-    target_pct = 5.0 if "5%" in plan_choice else (10.0 if "10%" in plan_choice else 20.0)
-
-    if cost > 0:
-        tp_price = cost * (1 + target_pct / 100)
-        sl_price = cost * 0.95
-
-    if cost > 0 and shares > 0 and current_price > 0:
-        invested      = cost * shares
-        current_value = current_price * shares
-        pnl           = current_value - invested
-        pnl_pct       = (pnl / invested) * 100
-        target_value  = tp_price * shares
-        target_profit = target_value - invested
-
-        # Summary
-        st.write("---")
-        m1, m2, m3 = st.columns(3)
-        m1.metric("💼 ลงทุนไปทั้งหมด", f"${invested:,.2f}")
-        m2.metric("📈 ถ้าขายตอนนี้ได้",  f"${current_value:,.2f}")
-        m3.metric("💰 กำไร/ขาดทุน",      f"${pnl:,.2f}", delta=f"{pnl_pct:+.1f}%")
-
-        # สถานะ
-        st.write("---")
-        if pnl_pct >= target_pct * 2:
-            st.success(f"🔥 กำไรเกินเป้ามากแล้ว ({pnl_pct:.1f}%) ระวังราคาย้อนกลับ ควรพิจารณาล็อคกำไรได้เลย")
-        elif current_price >= tp_price:
-            st.success(f"✅ ถึงเป้าแล้ว! ราคาตอนนี้ ${current_price:.4f} ขายได้กำไร {pnl_pct:.1f}%")
-        elif current_price < sl_price:
-            st.error(f"🚨 ราคาต่ำกว่าจุดตัดขาดทุน (${sl_price:.4f}) ถือต่ออาจเสียมากกว่านี้")
-        elif current_price < cost:
-            st.warning(f"⚠️ ตอนนี้ขาดทุนอยู่ รอให้ราคาขึ้นอีก ${cost - current_price:.4f}/หุ้น ถึงจะเท่าทุน")
-        else:
-            st.info(f"⏳ กำไรอยู่แต่ยังไม่ถึงเป้า อีก ${tp_price - current_price:.4f}/หุ้น ถึงจะครบ {target_pct:.0f}%")
-
-        # ชื่อแถว 2 เปลี่ยนตามสถานการณ์จริง
-        if current_price >= tp_price:
-            title_row2 = f"✅ ถึงเป้าแล้ว ขายได้เลย"
-            note_row2  = ""
-        else:
-            title_row2 = f"⏳ รอให้ราคาขึ้นถึง ${tp_price:.4f}"
-            note_row2  = "* ตัวเลขนี้จะได้จริงเมื่อราคาถึงเป้า"
-
-        # badge + highlight ตามสถานการณ์
-        if pnl_pct >= target_pct * 2:
-            badges       = ["ล็อคกำไรได้เลย ✅", "เกินเป้าแล้ว",    "ทำได้ ✅"]
-            badge_colors = ["green",              "amber",            "green"]
-            highlight    = 0
-        elif current_price >= tp_price:
-            badges       = ["ขายได้เลย ✅",       "ถึงแล้ว ✅",       "ทำได้ ✅"]
-            badge_colors = ["green",              "green",            "green"]
-            highlight    = 0
-        elif current_price < sl_price:
-            badges       = ["แนะนำให้ขาย",        "เสี่ยงสูง",        "ทำไม่ได้ตอนนี้"]
-            badge_colors = ["amber",              "gray",             "gray"]
-            highlight    = 0
-        elif current_price < cost:
-            badges       = ["ขาดทุนถ้าขาย",       "รออีกนาน",         "ทำไม่ได้ตอนนี้"]
-            badge_colors = ["gray",               "gray",             "gray"]
-            highlight    = -1
-        else:
-            badges       = ["ได้กำไรนิดหน่อย",    "แนะนำ รอต่อ ✅",   "ลดความเสี่ยง"]
-            badge_colors = ["amber",              "green",            "green"]
-            highlight    = 1
-
-        rows = [
-            {
-                "title":       "💰 ขายเลย เอาเงินออกมา",
-                "price":       f"${current_price:.4f}",
-                "value":       f"${current_value:,.2f}",
-                "profit":      f"${pnl:+,.2f}",
-                "profit_pct":  f"{pnl_pct:+.1f}%",
-                "profit_pos":  pnl >= 0,
-                "badge":       badges[0],
-                "badge_color": badge_colors[0],
-                "note":        "",
-            },
-            {
-                "title":       title_row2,
-                "price":       f"${tp_price:.4f}",
-                "value":       f"${target_value:,.2f}",
-                "profit":      f"${target_profit:+,.2f}",
-                "profit_pct":  f"{target_pct:+.1f}%",
-                "profit_pos":  True,
-                "badge":       badges[1],
-                "badge_color": badge_colors[1],
-                "note":        note_row2,
-            },
-            {
-                "title":       "🛡️ ขายแค่คืนทุน เหลือไว้ลุ้นฟรี",
-                "price":       f"${cost:.4f}",
-                "value":       f"${invested:,.2f}",
-                "profit":      "ได้ทุนคืน",
-                "profit_pct":  "+0.0%",
-                "profit_pos":  True,
-                "badge":       badges[2],
-                "badge_color": badge_colors[2],
-                "note":        "",
-            },
-        ]
-
-        st.write("#### เปรียบเทียบทางเลือก")
-        html_key = f"{cost}_{shares}_{current_price}_{target_pct}"
-        html = build_strategy_html(rows, highlight, html_key)
-        components.html(html, height=320, scrolling=False)
-
+    
+    if strategy == "สายชิลล์ (ถือยาว)":
+        buy_limit, sell_limit = 5, -3
+        strat_tag = "🔵 Conservative Mode"
     else:
-        st.warning("👈 กรอกตัวเลขด้านบนให้ครบก่อนนะครับ ระบบถึงจะแสดงผลได้")
+        buy_limit, sell_limit = 2, -2
+        strat_tag = "🔥 Aggressive Mode"
 
+    st.write("---")
+    st.header("🔍 ค้นหาข้อมูลหุ้น")
+    search_mode = st.radio("รูปแบบการค้นหา:", ["รายการโปรด", "พิมพ์ชื่อเอง"])
+    
+    if search_mode == "รายการโปรด":
+        fav_list = {
+            "NVDA": "NVIDIA (AI & GPU Leader)",
+            "AMD": "AMD (Processors & Graphics)",
+            "VOO": "VOO (S&P 500 Index ETF)",
+            "VGT": "VGT (Information Technology ETF)",
+            "GC=F": "Gold (ทองคำ)"
+        }
+        ticker_input = st.selectbox("เลือกจากรายการหลัก:", options=list(fav_list.keys()), format_func=lambda x: fav_list[x])
+    else:
+        ticker_input = st.text_input("ระบุ Ticker Symbol (เช่น AAPL, BTC-USD):", value="").upper().strip()
 
-if __name__ == "__main__":
-    st.set_page_config(page_title="Smart Guide", page_icon="🧠", layout="centered")
-    render_smart_guide()
+    days_to_predict = st.slider("พยากรณ์ล่วงหน้า (วัน):", 1, 30, 7)
+    
+    # เพิ่มคำอธิบาย Tooltip สำหรับช่วงเวลา
+    st.sidebar.markdown("เลือกช่วงข้อมูลย้อนหลัง:", help="""
+    • 6mo: สำหรับหุ้นผันผวนสูง (e.g.TECH)
+    • 1y: มาตรฐานที่แม่นยำที่สุด
+    • 2y+: ดูแนวต้านระยะยาว
+    """)
+    
+    # 2. ใส่ Selectbox ไว้ข้างล่างโดย 'ซ่อน' Label ของตัวมันเอง
+    period = st.sidebar.selectbox(
+        "Select Period", # ชื่อภายใน (มองไม่เห็นบนหน้าเว็บ)
+        ["6mo", "1y", "2y", "5y"], 
+        index=1,
+        label_visibility="collapsed" # บรรทัดนี้สำคัญมาก: ทำให้ชื่อข้างบนหายไปและไม่กินพื้นที่
+    )
+    
+    if st.button("Log out"):
+        st.session_state["password_correct"] = False
+        st.rerun()
+
+# --- 4. การประมวลผลข้อมูล AI ---
+@st.cache_data
+def get_data(symbol, p):
+    try:
+        data = yf.download(symbol, period=p)
+        return data
+    except: return None
+
+if ticker_input:
+    df = get_data(ticker_input, period)
+    
+    if df is None or df.empty:
+        st.info("💡 กรุณาเลือกหุ้นหรือระบุ Ticker เพื่อเริ่มต้นการวิเคราะห์")
+    else:
+        # AI Modeling (Linear Regression)
+        close_prices = df['Close'].values.flatten()
+        df_ml = pd.DataFrame({'Close': close_prices})
+        df_ml['S_1'] = df_ml['Close'].shift(1)
+        df_ml = df_ml.dropna()
+        X = df_ml[['S_1']].values.reshape(-1, 1)
+        y = df_ml['Close'].values.reshape(-1, 1)
+        
+        model = LinearRegression()
+        model.fit(X, y)
+        
+        # Prediction Logic
+        last_val = float(close_prices[-1])
+        preds = []
+        for _ in range(days_to_predict):
+            next_p = model.predict(np.array([[last_val]]))[0][0]
+            preds.append(next_p)
+            last_val = next_p
+
+        # --- 5. การแสดงผลกราฟ Interactive ---
+        st.title(f"📈 {ticker_input} Market Analysis")
+        st.markdown(f"**Investment Strategy:** `{strat_tag}`")
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df.index, y=close_prices, name="Historical Price", line=dict(color='#1f77b4', width=2)))
+        
+        future_dates = [df.index[-1] + timedelta(days=i) for i in range(1, days_to_predict + 1)]
+        fig.add_trace(go.Scatter(x=future_dates, y=preds, name="AI Prediction", line=dict(dash='dash', color='#ff7f0e', width=2)))
+        
+        fig.update_layout(
+            hovermode="x unified",
+            dragmode="pan",
+            xaxis=dict(rangeslider=dict(visible=False)),
+            margin=dict(l=10, r=10, t=40, b=10),
+            height=550
+        )
+        
+        # เปิดการซูมด้วยลูกกลิ้งเมาส์
+        st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True})
+
+        # --- 6. บทสรุปและสัญญาณวิเคราะห์ ---
+        current_p = float(close_prices[-1])
+        target_p = float(preds[-1])
+        change_pct = ((target_p - current_p) / current_p) * 100
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("ราคาตลาดล่าสุด", f"${current_p:.2f}")
+        with col2:
+            st.metric(f"เป้าหมาย ({days_to_predict} วันข้างหน้า)", f"${target_p:.2f}", delta=f"{change_pct:.2f}%")
+        with col3:
+            if change_pct > buy_limit:
+                st.success(f"🟢 แนะนำ: ซื้อ (Buy Signal)")
+            elif change_pct < sell_limit:
+                st.error(f"🔴 แนะนำ: ขาย (Sell Signal)")
+            else:
+                st.warning(f"🟡 แนะนำ: ถือ/รอดูอาการ (Hold)")
+
+        with st.expander("📝 บทวิเคราะห์เชิงเทคนิคจาก AI", expanded=True):
+            trend_txt = "ทิศทางขาขึ้น" if change_pct > 0 else "ทิศทางขาลง"
+            status_txt = "เป็นจุดที่น่าสนใจในการสะสม" if change_pct > buy_limit else "ควรระมัดระวังแรงเทขาย" if change_pct < sell_limit else "ราคามีแนวโน้มเคลื่อนไหวในกรอบแคบ"
+            
+            st.write(f"""
+            จากการประมวลผลข้อมูลหุ้น **{ticker_input}** ย้อนหลังในช่วง **{period}** 
+            ระบบ AI คาดการณ์ว่าในระยะสั้นมีโอกาสเป็น **{trend_txt}** โดยมีราคาเป้าหมายอยู่ที่ประมาณ **${target_p:.2f}** 
+            ภายใต้กลยุทธ์ที่เลือก สรุปคือ **{status_txt}** ทั้งนี้ผู้ลงทุนควรศึกษาปัจจัยพื้นฐานเพิ่มเติมประกอบการตัดสินใจ
+            """)
+            st.caption("หมายเหตุ: ดับเบิ้ลคลิกที่หน้ากราฟเพื่อรีเซ็ตมุมมองการซูม")
+
+        render_smart_guide()
